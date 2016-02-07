@@ -14,6 +14,11 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
+*.png
+*.blend1
+*.jpg
+
+
 # Windows shortcuts
 *.lnk
 
