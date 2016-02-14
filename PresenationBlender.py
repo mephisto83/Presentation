@@ -207,7 +207,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
  
         # Create new mesh
         print("create new mesh")
-        mesh = bpy.data.meshes.new(name)
+        if copyobj.type == 'LAMP':
+            mesh = bpy.data.lamps.new(name, 'AREA')
+        else: 
+            mesh = bpy.data.meshes.new(name)
  
         # Create new object associated with the mesh
         print("create new object associated with the mesh")
@@ -216,7 +219,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         # Copy data block from the old object into the new object
         print("copy data block from the old object into the new object")
         if copyobj.data != None:
-            ob_new.data = copyobj.data.copy()
+            ob_new.data = copyobj.data.copy() 
         # ob_new.scale = copyobj.scale.copy()
         # print(root_parent.matrix_world.translation);
         # ob_new.rotation_euler = copyobj.rotation_euler.copy()
