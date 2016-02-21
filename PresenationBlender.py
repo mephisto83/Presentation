@@ -35,6 +35,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     
     presentation_armatures = []
     presentation_objects = []
+    presentation_target_bones = []
     # total = bpy.props.IntProperty(name="Steps", default=2, min=1, max=100)
 
     def execute(self, context):
@@ -85,6 +86,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         self.configureArmature()
         self.processArmatures()
         self.processKeyFrames()
+        self.processArmatureFrames();
         self.processWorld()
     def processWorld(self):
         if "world" in self.scenes[0]:
@@ -230,7 +232,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         print("link new object to the given scene and select it")
         scene.objects.link(ob_new)
         ob_new.select = True
-        
+        self.context.scene.update();
         if len(copyobj.children) > 0:
             for i in range(len(copyobj.children)):
                 obj_ject = self.duplicateObject(scene, copyobj.children[i].name , copyobj.children[i], copyobj)
@@ -372,17 +374,59 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 else:
                     print("no x in grid")
                 x_grid = grid["x"]
+                chain_positions = []
+                if "chain_positions" in armatureConfig:
+                    chain_positions = armatureConfig["chain_positions"] 
                 last_bone = False
+                info_chains = [];
                 for j  in range(len(chains)):
                     chain = chains[j]
                     bone_chain = armature.edit_bones.new("bone.chain." + chain)
                     bone_chains.append(bone_chain)
-                    bone_chain.head = (j * x_grid,0,0)
-                    bone_chain.tail = ((j + 1) * x_grid,0,0)
+                    chain_position = self.getBoneChain(chain_positions, chain)
+                    if chain_position == None :
+                        bone_chain.head = (j * x_grid,0,0)
+                        bone_chain.tail = ((j + 1) * x_grid,0,0)
+                    else:
+                        bone_chain.head = (chain_position["head"]["x"], chain_position["head"]["y"], chain_position["head"]["z"])
+                        bone_chain.tail = (chain_position["tail"]["x"], chain_position["tail"]["y"], chain_position["tail"]["z"])
+                    info_chains.append({ "name" : chain, "chain" : bone_chain})
                     if last_bone:
                         bone_chain.parent = last_bone
                         bone_chain.use_connect = True
                     last_bone = bone_chain
+                if "ik_bones" in armatureConfig:
+                    print("has ik_bones");
+                    ik_bones = armatureConfig["ik_bones"]
+                    print(len(ik_bones))
+                    for y in range(len(ik_bones)):
+                        ik_bone = ik_bones[y]
+                        bone = self.getBoneChain(info_chains, ik_bone["connectTo"]);
+                        the_bone = bone["chain"]
+                        new_ik_bone = armature.edit_bones.new(ik_bone["id"])
+                        if "head" in ik_bone:
+                            new_ik_bone.head = mathutils.Vector(((ik_bone["head"]["x"], ik_bone["head"]["y"], ik_bone["head"]["z"])))
+                        else:
+                            new_ik_bone.head = the_bone.tail;
+                            
+                        if "tail" in ik_bone:
+                            new_ik_bone.tail = mathutils.Vector(((ik_bone["tail"]["x"], ik_bone["tail"]["y"], ik_bone["tail"]["z"])))
+                        else:
+                            new_ik_bone.tail = the_bone.tail + mathutils.Vector((0,0,0.6));
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        bpy.ops.object.select_all(action='DESELECT') 
+                        bpy.ops.object.mode_set(mode='POSE')       
+                        the_bone.select = True
+                        the_bone = rig.pose.bones["bone.chain." + ik_bone["connectTo"]].bone;
+                        armature.bones.active = the_bone
+                        bpy.ops.pose.constraint_add(type='IK')
+                        self.context.selected_pose_bones[0].constraints["IK"].target = rig
+                        self.context.selected_pose_bones[0].constraints["IK"].subtarget = ik_bone["id"]
+                        if "chain_length" in ik_bone:
+                            self.context.selected_pose_bones[0].constraints["IK"].chain_count = ik_bone["chain_length"]
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                        self.presentation_target_bones.append({"pose_bone": rig.pose.bones[ik_bone["id"]], "armature":armature, "rig" : rig, "name": ik_bone["id"] })       
+
                 #connect bones to targets
                 bpy.ops.object.mode_set(mode='OBJECT')
                 bpy.ops.object.select_all(action='DESELECT')
@@ -410,6 +454,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 self.presentation_armatures.append({"bone_chains":bone_chains,"armature" : armature, "rig":rig, "configuration": armatureConfig})
                 bpy.ops.object.mode_set(mode='OBJECT')
         
+    def getBoneChain(self, bones, name):
+        for k in range(len(bones)):
+            bone  = bones[k]
+            if bone["name"] == name:
+                return bone
+        return None
 
     def processKeyFrames(self):
         print("process key frames")
@@ -421,6 +471,15 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 #self.setFrame(keyframe)
                 self.setObjectsProperty(keyframe)
                 print("finished setting properties")
+    def processArmatureFrames(self):
+        print("process armature frames")
+        for i in range(len(self.scenes)):
+            scene = self.scenes[i]
+            if "armatureframes" in scene:
+                keyframes = scene["armatureframes"]
+                for k in range(len(keyframes)):
+                    keyframe = keyframes[k]
+                    self.setArmatureObjectsProperties(keyframe)
     def setObjectsProperty(self, keyframe):
         print("set objects property")
         objects = keyframe["objects"]
@@ -436,6 +495,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     print(keyframe)
                 self.setObjectProperty(obj, objects[i], keyframe["frame"])
                 print("set object  properties")
+    def setArmatureObjectsProperties(self, keyframe):
+        print("set armature objects frames")
+        objects = keyframe["objects"]
+        
+        for i in range(len(objects)):
+            obj = self.getBoneByName(objects[i]["name"])
+            if obj == 0:
+                print("bone not found, thats not good!")
+            else:
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='DESELECT')
+                rig = obj["rig"]
+                armature = obj["armature"]
+                rig.select = True;
+                bpy.ops.object.mode_set(mode='POSE')       
+                the_bone = rig.pose.bones[obj["name"]].bone;
+                armature.bones.active = the_bone
+                self.setArmatureObjectProperties({"object": rig.pose.bones[obj["name"]]}, objects[i], keyframe["frame"])
+                print("set armature properties")
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
     def parentCreatedObjects(self):
         print("Parent created objects")
         for i in range(len(self.scenes)):
@@ -472,6 +552,18 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         print("object mode")
         bpy.ops.object.select_all(action='DESELECT')
         bpy.context.scene.objects.active = None
+    def setArmatureObjectProperties(self, obj, config, frame):
+        print("setting armature object properties")
+        if "position" in config and config["position"]:
+            position = config["position"]
+            self.translation(obj, position, True, frame)
+        if "scale" in config and config["scale"]:
+            scale = config["scale"]
+            self.scale(obj, scale, True, frame)
+        if "rotation" in config and config["rotation"]:
+            rotation = config["rotation"]
+            self.rotation(obj, rotation , True, frame);
+        
     def setObjectProperty(self, obj, config, frame):
         print("obj type : " + obj["type"])
         print(type(obj["object"]))
@@ -888,6 +980,15 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             else:
                 print("missing a name")
         return 0
+    def getBoneByName(self, name):
+        for i in range(len(self.presentation_target_bones)):
+            obj = self.presentation_target_bones[i]
+            if "name" in obj:
+                if obj["name"] == name:
+                    return obj
+            else:
+                print("missing a name")
+        return 0
     
     def searchForObject(self, name, root):
         if root == None:
@@ -1251,6 +1352,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def clearObjects(self):
         del self.presentation_objects[:]
         del self.presentation_armatures[:]
+        del self.presentation_target_bones[:]
 
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action = 'SELECT')
