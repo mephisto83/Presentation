@@ -295,7 +295,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         #self.presentation_armatures.append({"bone_chains":bone_chains,"armature"
         #: armature, "rig":rig})
         print("setting object mode");
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # bpy.ops.object.mode_set(mode='OBJECT')
         print("set object mode");
         if len(self.presentation_armatures) > 0 :
             bpy.ops.object.mode_set(mode='POSE')
@@ -1039,8 +1039,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             scene = self.scenes[i]
             keyframes = scene["keyframes"]
             for k in range(len(keyframes)):
-                print("keyframe ")
+                print("keyframe s" )
+                print(len(keyframes));
                 keyframe = keyframes[k]
+                print("keyframe #" );
                 keyframe_objects = keyframe["objects"]
                 print("for each keyframe_obect")
                 for j in range(len(keyframe_objects)):
