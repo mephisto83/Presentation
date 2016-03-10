@@ -24,9 +24,106 @@ class PresentationBlenderGUI(bpy.types.Panel):
         TheCol = self.layout.column(align=True)
         TheCol.prop(context.scene, "presentation_settings")
         TheCol.operator("object.presentation_blender_maker", text="Update")
+        TheCol.operator("object.presentation_blender_mat_comp_reader", text="Read Mat/Comp")
 
 
+class PresentationBlenderMatCompReader(bpy.types.Operator):
+    """Presentation Blender Material Composition"""
+    bl_idname = "object.presentation_blender_mat_comp_reader"
+    bl_label = "Presentation Material Reader"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    # total = bpy.props.IntProperty(name="Steps", default=2, min=1, max=100)
 
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        # settings = context.scene.presentation_settings
+        # print(context.scene.presentation_settings)
+        
+        try:
+            print("start")
+            materials = self.readMats(bpy.data.materials)
+            comp = self.readComp(self.context.scene)
+            res = { "materials" : materials, "composite": comp }
+            text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
+            print(text)
+        except Exception as e:
+            print("didnt work out") 
+            print(e)
+        print("Executing")
+        #for i in range(self.total):
+        #    obj_new = obj.copy()
+        #    scene.objects.link(obj_new)
+
+        #    factor = i / self.total
+        #    obj_new.location = (obj.location * factor) + (cursor * (1.0 -
+        #    factor))
+
+        return {'FINISHED'}
+    def readMats(self, _materials):
+        materials = []
+        node_count = 0
+        for material in _materials:
+            mat_value = {}
+            mat = { "name" : material.name, "value": mat_value }
+            materials.append(mat)
+            if material.node_tree != None:
+                self.readMaterialsToDictionary(material, mat, mat_value)
+                materials.append(mat)
+        return materials
+    def readComp(self, material):
+        mat_value = {}
+        mat = { "name" : material.name, "value": mat_value }
+        # materials.append(mat)
+        if material.node_tree != None:
+            self.readMaterialsToDictionary(material, mat, mat_value)
+        return mat_value
+    def readMaterialsToDictionary(self, material, mat, mat_value):
+        node_count = 0
+        if material.node_tree != None:
+            nodes = []
+            nodes_ref = []
+            links = []
+            mat_value["nodes"] = nodes
+            mat_value["links"] = links
+            for _node in material.node_tree.nodes:
+                inputs = []
+                node_name = "node_{}".format(node_count)
+                print(node_name)
+                print(_node.bl_idname)
+                node = {"type" : _node.bl_idname, "inputs": inputs, "name" : node_name }
+                nodes_ref.append({"node": _node, "name": node_name })
+                node_count =  node_count + 1
+                nodes.append(node)
+                print("node count {}".format(len(_node.inputs)))
+                for i in range(len(_node.inputs)):
+                    print("input i s")
+                    input = _node.inputs[i]
+                    if hasattr(input, "default_value"):
+                        print(type(input.default_value))
+                        if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
+                            inputs.append({"index": i, "value": [f for f in input.default_value] })
+                        elif isinstance(input.default_value, float) or isinstance(input.default_value, int) or isinstance(input.default_value, str) or isinstance(input.default_value, bool ):
+                            inputs.append({"index": i, "value": input.default_value })
+            for _link in material.node_tree.links:
+                from_ = self.selectNodeName(_link.from_node, nodes_ref)
+                to_ = self.selectNodeName(_link.to_node, nodes_ref)
+                print("to_ " + to_)
+                print("from_ " + from_)
+                links.append( { "from": {"port": _link.from_socket.name , "name": from_ }, "to": {"port": _link.to_socket.name , "name": to_ } })
+
+                    
+    def selectNodeName(self, target, refs):
+        for ndata in refs:
+            if ndata["node"] == target:
+                return ndata["name"]       
+        return None             
+                    
+        
 class PresentationBlenderAnimation(bpy.types.Operator):
     """Presentation Blender Animation"""
     bl_idname = "object.presentation_blender_maker"
@@ -142,7 +239,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         for group in data_from.groups:
                             print("Group: " + group)
                         
+        if "Composite" in self.settings:
+            composite_settings = self.settings["Composite"]
+            # switch on nodes and get reference
+            self.context.scene.use_nodes = True
+            tree = bpy.context.scene.node_tree
 
+            # clear default nodes
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+            self.defineNodeTree(tree, custom_mat)
         if "Materials" in self.settings:
             print("setup materials")
             matsettings = self.settings["Materials"]
@@ -156,7 +262,63 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 with bpy.data.libraries.load(opath, relative=True) as (data_from, data_to):
                     data_to.materials = [name for name in data_from.materials if not self.hasMaterialByName(name)]
                     data_to.worlds = [name for name in data_from.worlds if not self.hasWorldsByName(name)]
+            
+            if "Materials" in matsettings:
+                custom_materials = matsettings["Materials"]
+                print("creating custom materials")
+                for custom_mat in custom_materials:
+                    print("create material")
+                    if "name" in custom_mat:
+                        mat_name = custom_mat["name"]
+                        print("create material called {}".format(mat_name))
+                        mat = bpy.data.materials.new(name=mat_name)
+                        if mat == None:
+                            raise("no material created")
+                        mat.use_nodes = True
+                        # clear all nodes to start clean
+                        for node in mat.node_tree.nodes:
+                            mat.node_tree.nodes.remove(node)
+                        self.defineNodeTree(mat.node_tree, custom_mat)
+                        
 
+    def defineNodeTree(self, node_tree, custom_mat):
+        print("create material")
+        if "name" in custom_mat:
+            print("created new material")
+            if "value" in custom_mat:
+                material_definition = custom_mat["value"]
+                print("material definition found")
+                node_tree_dict = {}
+                if "nodes" in material_definition:
+                    print("creating nodes in material")
+                    node_definitions = material_definition["nodes"]
+                    for node in node_definitions:
+                        print("creating {}".format(node["type"]))
+                        newnode = node_tree.nodes.new(type=node["type"])
+                        print("created type")
+                        node_tree_dict[node["name"]] = newnode
+                        if "inputs" in node:
+                            print("input defintions in node")
+                            for inputs in node["inputs"]:
+                                print("setting node's input")
+                                newnode.inputs[inputs["index"]].default_value = inputs["value"]
+                if "links" in material_definition:
+                    print("links in material definition found")
+                    link_definitions = material_definition["links"]
+                    print("link definitions")
+                    links = node_tree.links
+                    for link in link_definitions:
+                        print("link defintions ")
+                        output = node_tree_dict[link["from"]["name"]].outputs[link["from"]["port"]]
+                        input = node_tree_dict[link["to"]["name"]].inputs[link["to"]["port"]]
+                        links.new(output, input)
+                        print
+                        
+            else : 
+                print("no material definition found")
+                raise("no material definition found")
+        else:
+            raise("no material name found")
     def hasGroupByName(self, name):
         print("has group by name")
         for i in range(len(bpy.data.groups)):
@@ -349,12 +511,25 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 print("new armature()")
                 armature = bpy.data.armatures.new(armatureConfig["name"])
                 print("new rig()")
-                rig = bpy.data.objects.new("Rig$" + armatureConfig["name"], armature)
+                rig = bpy.data.objects.new(armatureConfig["name"], armature) # "Rig$" + 
                 if "origin" in armatureConfig:
                     rig.location = [armatureConfig["origin"]["x"],armatureConfig["origin"]["y"],armatureConfig["origin"]["z"]]
                 else :
                     rig.location = [0,0,0]
+                if "rotation" in armatureConfig:
+                    rig.rotation_euler.x = armatureConfig["rotation"]["x"]
+                    rig.rotation_euler.y = armatureConfig["rotation"]["y"]
+                    rig.rotation_euler.z = armatureConfig["rotation"]["z"]
+                    
+                if "parent"  in armatureConfig:
+                    a_parent = self.getObjectByName(armatureConfig["parent"])
+                    if a_parent == 0:
+                        raise ValueError("Cant find the armatures parent " + armatureConfig["parent"])
+                    else :
+                         rig.parent = a_parent["object"];
+                    
                 rig.show_x_ray = True
+                self.presentation_objects.append({"name" : armatureConfig["name"], "type" : "rig",  "rig" : rig, "mesh": rig.data, "object": rig });
                 armature.draw_type = "STICK"
                 armature.show_names = True
                 scn = self.context.scene
@@ -453,6 +628,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     mdObj["object"].select = False
                 self.presentation_armatures.append({"bone_chains":bone_chains,"armature" : armature, "rig":rig, "configuration": armatureConfig})
                 bpy.ops.object.mode_set(mode='OBJECT')
+                
         
     def getBoneChain(self, bones, name):
         for k in range(len(bones)):
@@ -500,13 +676,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         objects = keyframe["objects"]
         
         for i in range(len(objects)):
+            print("getting " + objects[i]["name"]);
             obj = self.getBoneByName(objects[i]["name"])
+            
             if obj == 0:
-                print("bone not found, thats not good!")
+                print("bone not found, thats not good! " +  objects[i]["name"])
+                # setArmatureObjectProperties
+                print("get object by name : " + objects[i]["name"])
+                obj = self.getObjectByName(objects[i]["name"])
+                if obj == 0:
+                    print("still cant find " + objects[i]["name"])
+                else:
+                    print("set object properities : "  + objects[i]["name"])
+                    self.setObjectProperty(obj, objects[i], keyframe["frame"])
             else:
+                print("found : " + objects[i]["name"]);
                 bpy.ops.object.mode_set(mode='OBJECT')
+                print("set mode to object")
                 bpy.ops.object.select_all(action='DESELECT')
+                print("deselected")
                 rig = obj["rig"]
+                print("got rig")
                 armature = obj["armature"]
                 rig.select = True;
                 bpy.ops.object.mode_set(mode='POSE')       
@@ -556,15 +746,19 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         print("setting armature object properties")
         if "position" in config and config["position"]:
             position = config["position"]
+            print("setting armture object position")
             self.translation(obj, position, True, frame)
         if "scale" in config and config["scale"]:
             scale = config["scale"]
+            print("setting armture object scale")
             self.scale(obj, scale, True, frame)
         if "rotation" in config and config["rotation"]:
             rotation = config["rotation"]
+            print("setting armture object rotation")
             self.rotation(obj, rotation , True, frame);
         
     def setObjectProperty(self, obj, config, frame):
+        print(obj);
         print("obj type : " + obj["type"])
         print(type(obj["object"]))
         if "position" in config:
@@ -1144,15 +1338,18 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "align" in scene_object_config and scene_object_config["align"]:
                 result["object"].data.align = scene_object_config["align"]
             if "font" in scene_object_config:
-                loaded = self.ensureFontLoaded(scene_object_config["font"])
-                if loaded: 
-                    font = self.getFont(scene_object_config["font"])
-                    print("got font " + scene_object_config["font"])
-                    if font != 0:
-                        print("setting font ")
-                        result["object"].data.font = font
-            bpy.ops.object.convert(target="MESH")
-            bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_MASS')
+                try:
+                    loaded = self.ensureFontLoaded(scene_object_config["font"])
+                    if loaded: 
+                        font = self.getFont(scene_object_config["font"])
+                        print("got font " + scene_object_config["font"])
+                        if font != 0:
+                            print("setting font ")
+                            result["object"].data.font = font
+                except:
+                    print("couldnt find font")
+            # bpy.ops.object.convert(target="MESH")
+            # bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_MASS')
 
         if "scale" in scene_object_config and scene_object_config["scale"]:
             scale = scene_object_config["scale"]
@@ -1372,11 +1569,13 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
 def menu_func(self, context):
     self.layout.operator(PresentationBlenderAnimation.bl_idname)
+    self.layout.operator(PresentationBlenderMatCompReader.bl_idname)
 
 # store keymaps here to access after registration
 # addon_keymaps = []
 def register():
     bpy.utils.register_class(PresentationBlenderAnimation)
+    bpy.utils.register_class(PresentationBlenderMatCompReader)
     bpy.utils.register_class(PresentationBlenderGUI)
     bpy.types.Scene.presentation_settings = bpy.props.StringProperty \
       (name = "Movie settings",
@@ -1395,6 +1594,7 @@ def register():
 def unregister():
     bpy.utils.unregister_class(PresentationBlenderAnimation)
     del bpy.types.Scene.presentation_settings
+    bpy.utils.unregister_class(PresentationBlenderMatCompReader)
     bpy.utils.unregister_class(PresentationBlenderGUI)
     bpy.types.VIEW3D_MT_object.remove(menu_func)
 
