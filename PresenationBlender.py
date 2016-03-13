@@ -9,8 +9,14 @@ import mathutils
 import bpy
 import os.path
 import json
+import bpy.types
+import inspect
 from types import *
-
+validmembers = ["tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+               
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
 
 class PresentationBlenderGUI(bpy.types.Panel):
     """Presentation GUI"""
@@ -95,20 +101,69 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                 node_name = "node_{}".format(node_count)
                 print(node_name)
                 print(_node.bl_idname)
-                node = {"type" : _node.bl_idname, "inputs": inputs, "name" : node_name }
+                node = {"_type" : _node.bl_idname, "inputs": inputs, "_name" : node_name, "location": [f for f in _node.location] }
                 nodes_ref.append({"node": _node, "name": node_name })
                 node_count =  node_count + 1
                 nodes.append(node)
                 print("node count {}".format(len(_node.inputs)))
+                members = inspect.getmembers(_node)
+                for member in members:
+                    if any(member[0] in s for s in validmembers):
+                        print("member : {}".format(member[0]))
+                        try:
+                            try:
+                                mval = member[1]
+                                if isinstance(mval, bpy.types.CurveMapping):
+                                    curvemap = { "data" : [] }
+                                    node[member[0]] = curvemap
+                                    print("curve map")
+                                    curves = [curve for curve in mval.curves]
+                                    k = 0 
+                                    for curve in curves:
+                                        curve_data = {"data" :  [] , "index": k}
+                                        print("points")
+                                        k = k + 1
+                                        points = [f for f in curve.points]
+                                        i = 0
+                                        for point in points:
+                                            point_data = {"index": i}
+                                            i = i + 1
+                                            point_data["location"] = [point.location[0], point.location[1]]
+                                            point_data["handle_type"] = point.handle_type
+                                            curve_data["data"].append(point_data)
+                                        curvemap["data"].append(curve_data)
+                                elif isinstance(mval, bpy.types.ColorRamp):
+                                    color_ramp = {"data": [] }
+                                    node[member[0]] = color_ramp
+                                    elements = [element for element in mval.elements]
+                                    for element in elements:
+                                        element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
+                                        color_ramp["data"].append(element_data) 
+                                elif isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, str):
+                                    node[member[0]] = member[1]
+                                else:
+                                    node[member[0]] = [f for f in member[1]]
+                            except  Exception as e:
+                                print(e)
+                                mval = member[1]
+                                if isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, list):
+                                    node[member[0]] = member[1]
+                        except:
+                            print(member)
                 for i in range(len(_node.inputs)):
                     print("input i s")
                     input = _node.inputs[i]
                     if hasattr(input, "default_value"):
                         print(type(input.default_value))
-                        if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
-                            inputs.append({"index": i, "value": [f for f in input.default_value] })
-                        elif isinstance(input.default_value, float) or isinstance(input.default_value, int) or isinstance(input.default_value, str) or isinstance(input.default_value, bool ):
-                            inputs.append({"index": i, "value": input.default_value })
+                        # if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
+                        try:
+                            try:
+                                inputs.append({"index": i, "value": [f for f in input.default_value] })
+                            # elif isinstance(input.default_value, float) or isinstance(input.default_value, int) or isinstance(input.default_value, str) or isinstance(input.default_value, bool ):
+                            except:
+                                inputs.append({"index": i, "value": input.default_value })
+                        except:
+                            print("didnt set anything")
             for _link in material.node_tree.links:
                 from_ = self.selectNodeName(_link.from_node, nodes_ref)
                 to_ = self.selectNodeName(_link.to_node, nodes_ref)
@@ -169,31 +224,76 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def processAnimation(self, config):
         print("processing animation")
         self.settings = self.loadSettings(config)
-        self.processSettings()
+        print("set settings")
         self.scenes = self.loadSceneConfig(config)
-        self.armatures = self.loadArmaturesConfig(self.scenes[0])
-        newobjects = self.createObjectsUsed()
-        self.createStage()
-        
-        for i in range(len(newobjects)):
-            self.presentation_objects.append(newobjects[i])
-        self.parentCreatedObjects()
-        
-        print("configur armatures")
-        self.configureArmature()
-        self.processArmatures()
-        self.processKeyFrames()
-        self.processArmatureFrames();
-        self.processWorld()
-    def processWorld(self):
-        if "world" in self.scenes[0]:
+        print("set scenes config")
+        self.createScenes(self.scenes)
+        print("created scenes")
+        for scene in self.scenes:
+            print("switching scenes")
+            self.switchToScene(scene["name"])
+            print("processing setings")
+            self.processSettings(scene)
+            self.armatures = self.loadArmaturesConfig(scene)
+            newobjects = self.createObjectsUsed(scene)
+            self.createStage(scene)
+            
+            for i in range(len(newobjects)):
+                newobjects[i]["scene"] = self.scene
+                self.presentation_objects.append(newobjects[i])
+            self.parentCreatedObjects(scene)
+            
+            print("configur armatures")
+            self.configureArmature(scene)
+            self.processArmatures(scene)
+            self.processKeyFrames(scene)
+            self.processArmatureFrames(scene);
+            self.processWorld(scene)
+        for scene in self.scenes:
+            self.switchToScene(scene["name"])
+            self.setupComposite(scene)
+    def setupComposite(self, scene):
+        if "composite" in scene:
+            composite_settings = scene["composite"]
+            if "file" in composite_settings:
+                f = open(composite_settings["file"], 'r')
+                filecontents = f.read()
+                composite_settings = json.loads(filecontents)
+            custom_mat = { "name":"composite", "value": composite_settings["composite"] }
+            # switch on nodes and get reference
+            self.context.scene.use_nodes = True
+            tree = bpy.context.scene.node_tree
+
+            # clear default nodes
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+            self.defineNodeTree(tree, custom_mat)
+    def createScenes(self, scenes):
+        running = True
+        while len(bpy.data.scenes) > 1:
+            running = False
+            print("deleting scene")
+            res = bpy.ops.scene.delete()
+            print("deleted scene")
+            if res.pop() != "CANCELLED":
+                running = True
+        for scene in scenes:
+            bpy.ops.scene.new(type='NEW')
+            cloneScene = bpy.context.scene
+            cloneScene.name = scene["name"]
+    def switchToScene(self, name):
+        bpy.data.screens['Default'].scene = bpy.data.scenes[name]
+        bpy.context.screen.scene=bpy.data.scenes[name]
+        self.scene = bpy.context.screen.scene
+    def processWorld(self, scene):
+        if "world" in scene:
             print("set the world ")
-            worldName = self.scenes[0]["world"]
+            worldName = scene["world"]
             if self.hasWorldsByName(worldName):
                 world = self.getWorldByName(worldName)
                 self.context.scene.world = world
 
-    def processSettings(self):
+    def processSettings(self, scene):
         print("Process settings")
         if "RenderEngine" in self.settings:
             print("set render engine")
@@ -239,16 +339,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         for group in data_from.groups:
                             print("Group: " + group)
                         
-        if "Composite" in self.settings:
-            composite_settings = self.settings["Composite"]
-            # switch on nodes and get reference
-            self.context.scene.use_nodes = True
-            tree = bpy.context.scene.node_tree
 
-            # clear default nodes
-            for node in tree.nodes:
-                tree.nodes.remove(node)
-            self.defineNodeTree(tree, custom_mat)
         if "Materials" in self.settings:
             print("setup materials")
             matsettings = self.settings["Materials"]
@@ -273,7 +364,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         print("create material called {}".format(mat_name))
                         mat = bpy.data.materials.new(name=mat_name)
                         if mat == None:
-                            raise("no material created")
+                            raise ValueError("no material created")
                         mat.use_nodes = True
                         # clear all nodes to start clean
                         for node in mat.node_tree.nodes:
@@ -293,10 +384,66 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     print("creating nodes in material")
                     node_definitions = material_definition["nodes"]
                     for node in node_definitions:
-                        print("creating {}".format(node["type"]))
-                        newnode = node_tree.nodes.new(type=node["type"])
+                        print(node)
+                        print("creating {}".format(node["_type"]))
+                        newnode = node_tree.nodes.new(type=node["_type"])
+                        if "location" in node:
+                            newnode.location = node["location"]
                         print("created type")
-                        node_tree_dict[node["name"]] = newnode
+                        node_tree_dict[node["_name"]] = newnode
+                        members = inspect.getmembers(newnode)
+                        for member in members:
+                            print("lookgin for {}".format(member[0]))
+                            if any(member[0] in s for s in validmembers):
+                                print("found {}".format(member[0]))
+                                if member[0] in node:
+                                    try:
+                                        
+                                        if isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
+                                            print(member)
+                                            print("curve mapping {} ".format(member[0]))
+                                            curvemap = getattr(newnode, member[0])
+                                            curves =  node[member[0]]["data"]
+                                            i = -1
+                                            for curve in curves:
+                                                i = i + 1
+                                                print("curves")
+                                                print(curve)
+                                                j = -1 
+                                                for point in curve["data"]:
+                                                    j = j + 1
+                                                    print("points {}".format( len (curvemap.curves[i].points)))
+                                                    if len (curvemap.curves[i].points) <= j :
+                                                        print("adding new curve")
+                                                        res = curvemap.curves[i].points.new(point["location"][0], point["location"][1])
+                                                        res.handle_type = point["handle_type"]
+                                                        print("added new curve")
+                                                    else:
+                                                        print("update existing curve")
+                                                        curvemap.curves[i].points[j].location = point["location"]
+                                                        curvemap.curves[i].points[j].handle_type = point["handle_type"]
+                                        elif isinstance(member[1], bpy.types.ColorRamp):
+                                            color_ramp_node = getattr(newnode, member[0])
+                                            elements =  node[member[0]]["data"]
+                                            j = -1
+                                            for element in elements:
+                                                j = j + 1
+                                                if len(color_ramp_node.elements) <= j:
+                                                    res = color_ramp_node.elements.new(element["position"])
+                                                    res.alpha = element["alpha"]
+                                                    res.color = element["color"]
+                                                else:
+                                                    res = color_ramp_node.elements[j]
+                                                    res.alpha = element["alpha"]
+                                                    res.color = element["color"]
+                                                    res.position = element["position"]
+                                                # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
+                                                # color_ramp["data"].append(element_data)
+                                        else:
+                                            setattr(newnode, member[0], node[member[0]])
+                                    except Exception as e:
+                                        print(e)
+                                        print("couldnt set propertY")
                         if "inputs" in node:
                             print("input defintions in node")
                             for inputs in node["inputs"]:
@@ -309,16 +456,24 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     links = node_tree.links
                     for link in link_definitions:
                         print("link defintions ")
-                        output = node_tree_dict[link["from"]["name"]].outputs[link["from"]["port"]]
-                        input = node_tree_dict[link["to"]["name"]].inputs[link["to"]["port"]]
+                        from_node = link["from"]["name"]
+                        from_port = link["from"]["port"]
+                        to_node = link["to"]["name"]
+                        to_port = link["to"]["port"]
+                        print("from_node : {}".format(from_node))
+                        print("from_port : {}".format(from_port))
+                        print("to_node : {}".format(to_node))
+                        print("to_port : {}".format(to_port))
+                        output = node_tree_dict[from_node].outputs[from_port]
+                        input = node_tree_dict[to_node].inputs[to_port]
                         links.new(output, input)
                         print
                         
             else : 
                 print("no material definition found")
-                raise("no material definition found")
+                raise ValueError("no material definition found")
         else:
-            raise("no material name found")
+            raise ValueError("no material name found")
     def hasGroupByName(self, name):
         print("has group by name")
         for i in range(len(bpy.data.groups)):
@@ -452,7 +607,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 return material
         return None
 
-    def processArmatures(self):
+    def processArmatures(self, scene):
         print("process armatures")
         #self.presentation_armatures.append({"bone_chains":bone_chains,"armature"
         #: armature, "rig":rig})
@@ -501,7 +656,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 count = count + 1
         elif arrange == "line":
             print("arrange line")
-    def configureArmature(self):
+    def configureArmature(self, scene):
         print("armatures")
         
         if self.armatures:
@@ -529,7 +684,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                          rig.parent = a_parent["object"];
                     
                 rig.show_x_ray = True
-                self.presentation_objects.append({"name" : armatureConfig["name"], "type" : "rig",  "rig" : rig, "mesh": rig.data, "object": rig });
+                self.presentation_objects.append({"scene": self.scene,  "name" : armatureConfig["name"], "type" : "rig",  "rig" : rig, "mesh": rig.data, "object": rig });
                 armature.draw_type = "STICK"
                 armature.show_names = True
                 scn = self.context.scene
@@ -637,25 +792,25 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 return bone
         return None
 
-    def processKeyFrames(self):
+    def processKeyFrames(self, scene):
         print("process key frames")
-        for i in range(len(self.scenes)):
-            scene = self.scenes[i]
-            keyframes = scene["keyframes"]
+        # for i in range(len(self.scenes)):
+        #     scene = self.scenes[i]
+        keyframes = scene["keyframes"]
+        for k in range(len(keyframes)):
+            keyframe = keyframes[k]
+            #self.setFrame(keyframe)
+            self.setObjectsProperty(keyframe)
+            print("finished setting properties")
+    def processArmatureFrames(self, scene):
+        print("process armature frames")
+        # for i in range(len(self.scenes)):
+        #     scene = self.scenes[i]
+        if "armatureframes" in scene:
+            keyframes = scene["armatureframes"]
             for k in range(len(keyframes)):
                 keyframe = keyframes[k]
-                #self.setFrame(keyframe)
-                self.setObjectsProperty(keyframe)
-                print("finished setting properties")
-    def processArmatureFrames(self):
-        print("process armature frames")
-        for i in range(len(self.scenes)):
-            scene = self.scenes[i]
-            if "armatureframes" in scene:
-                keyframes = scene["armatureframes"]
-                for k in range(len(keyframes)):
-                    keyframe = keyframes[k]
-                    self.setArmatureObjectsProperties(keyframe)
+                self.setArmatureObjectsProperties(keyframe)
     def setObjectsProperty(self, keyframe):
         print("set objects property")
         objects = keyframe["objects"]
@@ -706,25 +861,26 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 print("set armature properties")
                 bpy.ops.object.mode_set(mode='OBJECT')
                 
-    def parentCreatedObjects(self):
+    def parentCreatedObjects(self, scene):
         print("Parent created objects")
-        for i in range(len(self.scenes)):
-            print("scene parent ")
-            objs = self.scenes[i]["objects"]
-            for j in range(len(objs)):
-                obj = objs[j]
-                print("scene parent  > OBJECTS")
-                print("here")
-                print(obj)
-                createdObject = self.getObjectByName(obj["name"])
-                print("got created object")
-                if "parent" in obj:
-                    print("has a parent : " + obj["parent"])
-                if createdObject and "parent" in obj:
-                    print("parent name : " + obj["parent"])
-                    parentObj = self.getObjectByName(obj["parent"])
-                    if parentObj:
-                        self.parentObject(parentObj, createdObject)
+        # for i in range(len(self.scenes)):
+        print("scene parent ")
+        #       objs = self.scenes[i]["objects"]
+        objs = scene["objects"]
+        for j in range(len(objs)):
+            obj = objs[j]
+            print("scene parent  > OBJECTS")
+            print("here")
+            print(obj)
+            createdObject = self.getObjectByName(obj["name"])
+            print("got created object")
+            if "parent" in obj:
+                print("has a parent : " + obj["parent"])
+            if createdObject and "parent" in obj:
+                print("parent name : " + obj["parent"])
+                parentObj = self.getObjectByName(obj["parent"])
+                if parentObj:
+                    self.parentObject(parentObj, createdObject)
 
     def parentObject(self, b, a):
         print("Parent object a to b")
@@ -1169,7 +1325,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         for i in range(len(self.presentation_objects)):
             obj = self.presentation_objects[i]
             if "name" in obj:
-                if obj["name"] == name:
+                if obj["name"] == name and obj["scene"] == self.scene:
                     return obj
             else:
                 print("missing a name")
@@ -1205,56 +1361,64 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
     def setFrame(self, keyframe):
         self.context.scene.frame_current = keyframe["frame"]    
-    def createStage(self):
+    def createStage(self, scene):
         print("create stage")
-        for i in range(len(self.scenes)):
-            scene = self.scenes[i]
-            if "stage" in scene:
-                stageConfig = scene["stage"]
-                if "File" in stageConfig:
-                    opath = stageConfig["File"]
-                    if "Group" in stageConfig:
-                        if not self.hasGroupByName(stageConfig["Group"]):
-                            with bpy.data.libraries.load(opath) as (data_from, data_to):
-                                data_to.groups = [stageConfig["Group"]]
-                        group = bpy.data.groups[stageConfig["Group"]]
-                        for j in range(len(group.objects)):
-                            obj = group.objects[j]
-                            print("stage: add object")
-                            o = bpy.ops.object.add_named(name=obj.name)
-                            self.context.active_object.location.x = 0
-                            self.context.active_object.location.y = 0
-                            self.context.active_object.location.z = 0
+        # for i in range(len(self.scenes)):
+        #     scene = self.scenes[i]
+        #     if "name" in scene:
+        #         if scene["name"] in bpy.data.scenes:
+        #             bpy.data.screens['Default'].scene = bpy.data.scenes[scene["name"]]
+        #             bpy.context.screen.scene=bpy.data.scenes[scene["name"]]
+        #         else: 
+        #             raise("no scene named {}".format(scene["name"]))
+        #     else:
+        #         raise("name not attached to scene")
+        if "stage" in scene:
+            stageConfig = scene["stage"]
+            if "File" in stageConfig:
+                opath = stageConfig["File"]
+                if "Group" in stageConfig:
+                    if not self.hasGroupByName(stageConfig["Group"]):
+                        with bpy.data.libraries.load(opath) as (data_from, data_to):
+                            data_to.groups = [stageConfig["Group"]]
+                    group = bpy.data.groups[stageConfig["Group"]]
+                    for j in range(len(group.objects)):
+                        obj = group.objects[j]
+                        print("stage: add object")
+                        o = bpy.ops.object.add_named(name=obj.name)
+                        self.context.active_object.location.x = 0
+                        self.context.active_object.location.y = 0
+                        self.context.active_object.location.z = 0
 
-    def createObjectsUsed(self):
+    def createObjectsUsed(self, scene):
         objects = []
         objectnames = []
-        for i in range(len(self.scenes)):
-            scene = self.scenes[i]
-            keyframes = scene["keyframes"]
-            for k in range(len(keyframes)):
-                print("keyframe s" )
-                print(len(keyframes));
-                keyframe = keyframes[k]
-                print("keyframe #" );
-                keyframe_objects = keyframe["objects"]
-                print("for each keyframe_obect")
-                for j in range(len(keyframe_objects)):
-                    obj = keyframe_objects[j]
-                    print("get name keyframe_obect")
-                    count = objectnames.count(obj["name"])
-                    print("got name " + obj["name"])
-                    print("count : " + str(count))
-                    if count == 0:
-                        print("appending object name")
-                        objectnames.append(obj["name"])
-                        print("create object")
-                        newobj = self.createObject(obj, scene["objects"])
-                        if newobj == None:
-                            raise ValueError('new object has value of None')
-                        print("created the object")
-                        objects.append(newobj)
-                        print("appended object to list")
+        # for i in range(len(self.scenes)):
+        #     scene = self.scenes[i]
+        keyframes = scene["keyframes"]
+        for k in range(len(keyframes)):
+            print("keyframe s" )
+            print(len(keyframes));
+            keyframe = keyframes[k]
+            print("keyframe #" );
+            keyframe_objects = keyframe["objects"]
+            print("for each keyframe_obect")
+            for j in range(len(keyframe_objects)):
+                obj = keyframe_objects[j]
+                print("get name keyframe_obect")
+                count = objectnames.count(obj["name"])
+                print("got name " + obj["name"])
+                print("count : " + str(count))
+                if count == 0:
+                    print("appending object name")
+                    objectnames.append(obj["name"])
+                    print("create object")
+                    newobj = self.createObject(obj, scene["objects"])
+                    if newobj == None:
+                        raise ValueError('new object has value of None')
+                    print("created the object")
+                    objects.append(newobj)
+                    print("appended object to list")
         print("created objectes used array")
         return objects
 

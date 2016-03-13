@@ -26,8 +26,8 @@
                     "value": {
                         "nodes": [
                             {
-                                "type": "ShaderNodeEmission",
-                                "name": "emission",
+                                "_type": "ShaderNodeEmission",
+                                "_name": "emission",
                                 "inputs": [
                                     {
                                         "index": 0,
@@ -45,8 +45,8 @@
                                 ]
                             },
                             {
-                                "type": "ShaderNodeOutputMaterial",
-                                "name": "output"
+                                "_type": "ShaderNodeOutputMaterial",
+                                "_name": "output"
                             }
                         ],
                         "links": [
@@ -68,7 +68,39 @@
     },
     "scenes": [
         {
-            "name": "default",
+            "name": "secondscene",
+            "composite": {
+                "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
+            },
+            "objects": [
+                {
+                    "name": "second_scene",
+                    "type": "text",
+                    "align": "RIGHT",
+                    "value": "test 5",
+                    "font": "mriamc",
+                    "extrude": 0.1,
+                    "material": "MedLightBlue"
+                }
+            ],
+            "keyframes": [
+                {
+                    "frame": 1,
+                    "objects": [
+                        {
+                            "name": "second_scene",
+                            "position": {
+                                "x": 0,
+                                "y": 2,
+                                "z": 0
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "Scene",
             "stage": {
                 "File": "D:\\Render\\Presenatation\\Test\\3\\untitled1.blend",
                 "Group": "Stage"
