@@ -1069,6 +1069,26 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "sensor_width" in childConfig:
             tempObject["object"].data.sensor_width  = float(childConfig["sensor_width"])
             tempObject["object"].data.keyframe_insert(data_path="sensor_width", frame=frame)
+        if "dof_object" in childConfig:
+            target = self.getObjectByName(childConfig["dof_object"])
+            if target != None:
+                tempObject["object"].dof_object = target["object"]
+        if "gpu_dof" in childConfig:
+            gpu_dof = childConfig["gpu_dof"]
+            if "fstop" in gpu_dof:
+                tempObject["object"].fstop = gpu_dof["fstop"]
+            if "use_high_quality" in gpu_dof:
+                tempObject["object"].use_high_quality = gpu_dof["use_high_quality"]
+        if "cycles" in childConfig:
+                cycles = childConfig["cycles"]
+            if "aperture_size" in cycles:
+                tempObject["object"].aperture_size = cycles["aperture_size"]
+            if "aperture_blades" in cycles:
+                tempObject["object"].aperture_blades = cycles["aperture_blades"]
+            if "aperture_rotation" in cycles:
+                tempObject["object"].aperture_rotation = cycles["aperture_rotation"]
+            if "aperture_ratio" in cycles:
+                tempObject["object"].aperture_ratio = cycles["aperture_ratio"]
         print("-======completed applying config====-")
 
     def limit_rotation(self, obj, config, keyframe, frame):
@@ -1501,6 +1521,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 
             if "align" in scene_object_config and scene_object_config["align"]:
                 result["object"].data.align = scene_object_config["align"]
+            if "size" in scene_object_config:
+                result["object"].data.size = scene_object_config["size"] 
             if "font" in scene_object_config:
                 try:
                     loaded = self.ensureFontLoaded(scene_object_config["font"])
