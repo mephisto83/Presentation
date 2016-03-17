@@ -12,7 +12,7 @@ import json
 import bpy.types
 import inspect
 from types import *
-validmembers = ["tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+validmembers = ["node_tree", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
                
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -105,14 +105,19 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                 nodes_ref.append({"node": _node, "name": node_name })
                 node_count =  node_count + 1
                 nodes.append(node)
-                print("node count {}".format(len(_node.inputs)))
                 members = inspect.getmembers(_node)
                 for member in members:
                     if any(member[0] in s for s in validmembers):
-                        print("member : {}".format(member[0]))
+                        if member[0] == "node_tree":
+                            print("member : {}".format(member[0]))
+                            print(member[1])
                         try:
                             try:
                                 mval = member[1]
+                                if isinstance(mval, bpy.types.ShaderNodeTree):
+                                    print("shader node group  -------------------------------------------------------------------------------" )
+                                    print(member[1].name )
+                                    node[member[0]] = member[1].name
                                 if isinstance(mval, bpy.types.CurveMapping):
                                     curvemap = { "data" : [] }
                                     node[member[0]] = curvemap
@@ -360,18 +365,37 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 for custom_mat in custom_materials:
                     print("create material")
                     if "name" in custom_mat:
-                        mat_name = custom_mat["name"]
-                        print("create material called {}".format(mat_name))
-                        mat = bpy.data.materials.new(name=mat_name)
-                        if mat == None:
-                            raise ValueError("no material created")
-                        mat.use_nodes = True
-                        # clear all nodes to start clean
-                        for node in mat.node_tree.nodes:
-                            mat.node_tree.nodes.remove(node)
-                        self.defineNodeTree(mat.node_tree, custom_mat)
-                        
-
+                        self.defineMaterial(custom_mat)
+                        # mat_name = custom_mat["name"]
+                        # print("create material called {}".format(mat_name))
+                        # mat = bpy.data.materials.new(name=mat_name)
+                        # if mat == None:
+                        #     raise ValueError("no material created")
+                        # mat.use_nodes = True
+                        # # clear all nodes to start clean
+                        # for node in mat.node_tree.nodes:
+                        #     mat.node_tree.nodes.remove(node)
+                        # self.defineNodeTree(mat.node_tree, custom_mat)
+                    elif "file" in custom_mat:
+                        f = open(custom_mat["file"], 'r')
+                        filecontents = f.read()
+                        composite_settings = json.loads(filecontents)
+                        if "materials" in composite_settings:
+                            for material in composite_settings["materials"]:
+                                self.defineMaterial(material)
+                            
+    def defineMaterial(self,  custom_mat):
+        if "name" in custom_mat:
+            mat_name = custom_mat["name"]
+            print("create material called {}".format(mat_name))
+            mat = bpy.data.materials.new(name=mat_name)
+            if mat == None:
+                raise ValueError("no material created")
+            mat.use_nodes = True
+            # clear all nodes to start clean
+            for node in mat.node_tree.nodes:
+                mat.node_tree.nodes.remove(node)
+            self.defineNodeTree(mat.node_tree, custom_mat)
     def defineNodeTree(self, node_tree, custom_mat):
         print("create material")
         if "name" in custom_mat:
@@ -393,13 +417,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         node_tree_dict[node["_name"]] = newnode
                         members = inspect.getmembers(newnode)
                         for member in members:
-                            print("lookgin for {}".format(member[0]))
                             if any(member[0] in s for s in validmembers):
                                 print("found {}".format(member[0]))
                                 if member[0] in node:
                                     try:
-                                        
-                                        if isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
+                                        if member[0] == "node_tree":
+                                            print("setting shader node tree " + node[member[0]])
+                                            #setattr(newnode, member[0], bpy.data.node_groups[node[member[0]]])
+                                            newnode.node_tree = bpy.data.node_groups[node[member[0]]]
+                                            print("set node groups")
+                                        elif isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
                                             print(member)
                                             print("curve mapping {} ".format(member[0]))
                                             curvemap = getattr(newnode, member[0])
@@ -1080,7 +1107,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "use_high_quality" in gpu_dof:
                 tempObject["object"].use_high_quality = gpu_dof["use_high_quality"]
         if "cycles" in childConfig:
-                cycles = childConfig["cycles"]
+            cycles = childConfig["cycles"]
             if "aperture_size" in cycles:
                 tempObject["object"].aperture_size = cycles["aperture_size"]
             if "aperture_blades" in cycles:

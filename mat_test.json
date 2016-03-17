@@ -22,6 +22,9 @@
             ],
             "Materials": [
                 {
+                    "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
+                },
+                {
                     "name": "custom_material",
                     "value": {
                         "nodes": [
@@ -80,7 +83,7 @@
                     "value": "test 5",
                     "font": "mriamc",
                     "extrude": 0.1,
-                    "material": "MedLightBlue"
+                    "material": "ShinyMetal"
                 }
             ],
             "keyframes": [
