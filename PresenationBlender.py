@@ -311,6 +311,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
         bpy.context.scene.render.tile_y = 256
         bpy.context.scene.render.tile_x = 256
+        
+        if "fps" in self.settings:
+            bpy.context.scene.render.fps = float(self.settings["fps"])
+            bpy.context.scene.render.fps_base = 1
+
 
         bpy.context.scene.render.resolution_percentage = 100
         if "samples" in self.settings:
