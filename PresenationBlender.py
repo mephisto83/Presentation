@@ -12,7 +12,7 @@ import json
 import bpy.types
 import inspect
 from types import *
-validmembers = ["node_tree", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+validmembers = ["node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
                
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -56,7 +56,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             res = { "materials" : materials, "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
-            print(text)
+            print("complete")
         except Exception as e:
             print("didnt work out") 
             print(e)
@@ -77,19 +77,51 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             mat_value = {}
             mat = { "name" : material.name, "value": mat_value }
             materials.append(mat)
-            if material.node_tree != None:
-                self.readMaterialsToDictionary(material, mat, mat_value)
+            
+            if material.node_tree == None:
+                mat["blender_render"] = True
+            # if material.node_tree != None:
+            self.readMaterialsToDictionary(material, mat, mat_value)
+            t = [f for f in materials if f["name"] == material.name]
+            if len(t) == 0:
                 materials.append(mat)
         return materials
     def readComp(self, material):
         mat_value = {}
         mat = { "name" : material.name, "value": mat_value }
         # materials.append(mat)
-        if material.node_tree != None:
-            self.readMaterialsToDictionary(material, mat, mat_value)
+        
+        if material.node_tree == None:
+            mat["blender_render"] = True
+        self.readMaterialsToDictionary(material, mat, mat_value)
         return mat_value
+    def packProperties(self, obj):
+        print("packing properties")
+        members = inspect.getmembers(obj)
+        result = {}
+        for member in members:
+            try:
+                if isinstance(member[1], int) or isinstance(member[1], float) or isinstance(member[1], bool):
+                    result[member[0]] = result[member[1]]
+                elif isinstance(member[1], mathutils.Color):
+                    result[member[0]] = [f for f in member[1]]
+            except Exception as e:
+                print(e)
+        return result
+        
     def readMaterialsToDictionary(self, material, mat, mat_value):
         node_count = 0
+        if material.node_tree == None:
+            mat["blender_render"] = True
+            members = inspect.getmembers(material)
+            for member in members:
+                mval = member[1]
+                if isinstance(member[1], int) or isinstance(member[1], float) or isinstance(member[1], bool):
+                    mat_value[member[0]] = member[1]
+                elif isinstance(member[1], mathutils.Color):
+                    mat_value[member[0]] = [f for f in member[1]]
+                else: # isinstance(mval, bpy.types.MaterialHalo):
+                    mat_value[member[0]] = self.packProperties(member[1])
         if material.node_tree != None:
             nodes = []
             nodes_ref = []
@@ -99,8 +131,6 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             for _node in material.node_tree.nodes:
                 inputs = []
                 node_name = "node_{}".format(node_count)
-                print(node_name)
-                print(_node.bl_idname)
                 node = {"_type" : _node.bl_idname, "inputs": inputs, "_name" : node_name, "location": [f for f in _node.location] }
                 nodes_ref.append({"node": _node, "name": node_name })
                 node_count =  node_count + 1
@@ -108,25 +138,19 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                 members = inspect.getmembers(_node)
                 for member in members:
                     if any(member[0] in s for s in validmembers):
-                        if member[0] == "node_tree":
-                            print("member : {}".format(member[0]))
-                            print(member[1])
                         try:
                             try:
                                 mval = member[1]
                                 if isinstance(mval, bpy.types.ShaderNodeTree):
-                                    print("shader node group  -------------------------------------------------------------------------------" )
                                     print(member[1].name )
                                     node[member[0]] = member[1].name
-                                if isinstance(mval, bpy.types.CurveMapping):
+                                elif isinstance(mval, bpy.types.CurveMapping):
                                     curvemap = { "data" : [] }
                                     node[member[0]] = curvemap
-                                    print("curve map")
                                     curves = [curve for curve in mval.curves]
                                     k = 0 
                                     for curve in curves:
                                         curve_data = {"data" :  [] , "index": k}
-                                        print("points")
                                         k = k + 1
                                         points = [f for f in curve.points]
                                         i = 0
@@ -156,10 +180,8 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                         except:
                             print(member)
                 for i in range(len(_node.inputs)):
-                    print("input i s")
                     input = _node.inputs[i]
                     if hasattr(input, "default_value"):
-                        print(type(input.default_value))
                         # if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
                         try:
                             try:
@@ -172,10 +194,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             for _link in material.node_tree.links:
                 from_ = self.selectNodeName(_link.from_node, nodes_ref)
                 to_ = self.selectNodeName(_link.to_node, nodes_ref)
-                print("to_ " + to_)
-                print("from_ " + from_)
                 links.append( { "from": {"port": _link.from_socket.name , "name": from_ }, "to": {"port": _link.to_socket.name , "name": to_ } })
-
                     
     def selectNodeName(self, target, refs):
         for ndata in refs:
@@ -201,6 +220,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         obj = scene.objects.active
         self.context = context
         settings = context.scene.presentation_settings
+        self.relativeDirePath = os.path.dirname(settings) + "\\"
         print(context.scene.presentation_settings)
         try:
             self.clearObjects()
@@ -213,6 +233,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             obj = json.loads(filecontents)
             print("loaded config json")
             self.processAnimation(obj)
+            bpy.ops.file.pack_all()
         except Exception as e:
             print("didnt work out") 
             print(e)
@@ -239,6 +260,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.switchToScene(scene["name"])
             print("processing setings")
             self.processSettings(scene)
+            self.processWorld(scene)
+            self.prolightingProcess(scene)
             self.armatures = self.loadArmaturesConfig(scene)
             newobjects = self.createObjectsUsed(scene)
             self.createStage(scene)
@@ -252,11 +275,86 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.configureArmature(scene)
             self.processArmatures(scene)
             self.processKeyFrames(scene)
-            self.processArmatureFrames(scene);
-            self.processWorld(scene)
+            self.processArmatureFrames(scene)
         for scene in self.scenes:
             self.switchToScene(scene["name"])
             self.setupComposite(scene)
+            
+    def parseValue(self, value):
+        if isinstance(value, bool) or isinstance(value, float) or isinstance(value, int) or isinstance(value, str):
+            try:
+                return float(value)
+            except:
+                try:
+                    return int(value)
+                except:
+                    return value
+        return value
+       
+    def prolightingProcess(self, scene):
+        if "prolighting" in scene:
+            firefixes = False
+            if scene["prolighting"] == False:
+                return
+            else:
+                print("setup pro lighting ")
+                prolighting_config = scene["prolighting"]
+                if "light" in prolighting_config:
+                    light_config = prolighting_config["light"]
+                    print(light_config)
+                    light_key_list = ["use_pl_studio_lights"]
+                    if "use_pl_studio_lights" in light_config  and light_config["use_pl_studio_lights"]:
+                        firefixes = True
+                        for key in light_config:
+                            light_key_list.append(key)
+                        for key in light_key_list:
+                            print(key)
+                            val = self.parseValue(light_config[key])
+                            setattr(bpy.context.scene.pl_studio_props, key, val)
+                if "background" in prolighting_config:
+                    background_config = prolighting_config["background"]
+                    print(background_config)
+                    background_key_list = ["use_pl_studio_background"]
+                    if "use_pl_studio_background" in background_config and background_config["use_pl_studio_background"]:
+                        firefixes = True
+                        for key in background_config:
+                            background_key_list.append(key)
+                        for key in background_key_list:
+                            print(key)
+                            val = self.parseValue(background_config[key])
+                            setattr(bpy.context.scene.pl_studio_props, key, val)
+                if "reflections" in prolighting_config:
+                    reflections_config = prolighting_config["reflections"]
+                    print(reflections_config)
+                    reflections_key_list = ["use_pl_studio_reflections"]
+                    if "use_pl_studio_reflections" in reflections_config and reflections_config["use_pl_studio_reflections"]:
+                        firefixes = True
+                        for key in reflections_config:
+                            reflections_key_list.append(key)
+                        for key in reflections_key_list:
+                            print(key)
+                            val = self.parseValue(reflections_config[key])
+                            setattr(bpy.context.scene.pl_studio_props, key, val)
+                if "floor" in prolighting_config :
+                    floor_config = prolighting_config["floor"]
+                    print(floor_config)
+                    floor_key_list = ["use_pl_studio_floors"]
+                    if "use_pl_studio_floors" in floor_config and floor_config["use_pl_studio_floors"]:
+                        firefixes = True
+                        for key in floor_config:
+                            floor_key_list.append(key)
+                        for key in floor_key_list:
+                            print(key)
+                            val = self.parseValue(floor_config[key])
+                            setattr(bpy.context.scene.pl_studio_props, key, val)
+                         
+                        bpy.ops.scene.pl_studio_floor_apply()
+                if firefixes :
+                    bpy.ops.scene.pl_studio_fix_warnings(warning_type='background_color')
+                    bpy.ops.scene.pl_studio_make_real()
+
+
+                    
     def setupComposite(self, scene):
         if "composite" in scene:
             composite_settings = scene["composite"]
@@ -300,10 +398,14 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
     def processSettings(self, scene):
         print("Process settings")
-        if "RenderEngine" in self.settings:
+        if "RenderEngine" in scene:
+            self.context.scene.render.engine = scene["RenderEngine"]
+        elif "RenderEngine" in self.settings:
             print("set render engine")
             self.context.scene.render.engine = self.settings["RenderEngine"]
+        
         if "Device" in self.settings:
+            print("device in settings")
             self.context.scene.cycles.device = self.settings["Device"]
             
         bpy.context.scene.render.resolution_x = 1280
@@ -313,12 +415,14 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         bpy.context.scene.render.tile_x = 256
         
         if "fps" in self.settings:
+            print("fps in settings")
             bpy.context.scene.render.fps = float(self.settings["fps"])
             bpy.context.scene.render.fps_base = 1
 
 
         bpy.context.scene.render.resolution_percentage = 100
         if "samples" in self.settings:
+            print("samples in settings")
             bpy.context.scene.cycles.samples = float(self.settings["samples"])
         else :
             bpy.context.scene.cycles.samples = 200
@@ -326,25 +430,28 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
         
         if "FrameEnd" in self.settings:
+            print("frameend in settings")
             bpy.context.scene.frame_end = self.settings["FrameEnd"]
         
         if "FrameStart" in self.settings:
-            bpy.context.scene.frame_end = self.settings["FrameStart"]
+            print("framestart in settings")
+            bpy.context.scene.frame_start = self.settings["FrameStart"]
         if "Objects" in self.settings:
+            print("objects in settings")
             objectssettings = self.settings["Objects"]
-            obj_location = objectssettings["File"]
-
-
-            with bpy.data.libraries.load(obj_location, relative=True) as (data_from, data_to):
-                data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
-                for group in data_from.groups:
-                    print("Group: " + group)
+            
+            if "File" in objectssettings:
+                obj_location = self.relativeDirePath + objectssettings["File"]
+                with bpy.data.libraries.load(obj_location) as (data_from, data_to):
+                    data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
+                    for group in data_from.groups:
+                        print("Group: " + group)
             
             if "Files" in objectssettings:
                 for i in range(len(objectssettings["Files"])):
-                    objlocation = objectssettings["Files"][i]
+                    objlocation = self.relativeDirePath  + objectssettings["Files"][i]
                     print(objlocation);
-                    with bpy.data.libraries.load(objlocation, relative=True) as (data_from, data_to):
+                    with bpy.data.libraries.load(objlocation) as (data_from, data_to):
                         data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
                         for group in data_from.groups:
                             print("Group: " + group)
@@ -358,9 +465,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             material_locator = "\\Material\\"  
             for i in range(len(matsettings["Names"])):
                 matname = matsettings["Names"][i]
-                opath = mat_location
-
-                with bpy.data.libraries.load(opath, relative=True) as (data_from, data_to):
+                opath = self.relativeDirePath +  mat_location
+                print(opath)
+                with bpy.data.libraries.load(opath) as (data_from, data_to):
                     data_to.materials = [name for name in data_from.materials if not self.hasMaterialByName(name)]
                     data_to.worlds = [name for name in data_from.worlds if not self.hasWorldsByName(name)]
             
@@ -371,16 +478,6 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     print("create material")
                     if "name" in custom_mat:
                         self.defineMaterial(custom_mat)
-                        # mat_name = custom_mat["name"]
-                        # print("create material called {}".format(mat_name))
-                        # mat = bpy.data.materials.new(name=mat_name)
-                        # if mat == None:
-                        #     raise ValueError("no material created")
-                        # mat.use_nodes = True
-                        # # clear all nodes to start clean
-                        # for node in mat.node_tree.nodes:
-                        #     mat.node_tree.nodes.remove(node)
-                        # self.defineNodeTree(mat.node_tree, custom_mat)
                     elif "file" in custom_mat:
                         f = open(custom_mat["file"], 'r')
                         filecontents = f.read()
@@ -396,11 +493,30 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             mat = bpy.data.materials.new(name=mat_name)
             if mat == None:
                 raise ValueError("no material created")
-            mat.use_nodes = True
-            # clear all nodes to start clean
-            for node in mat.node_tree.nodes:
-                mat.node_tree.nodes.remove(node)
-            self.defineNodeTree(mat.node_tree, custom_mat)
+            if "blender_render" in custom_mat:
+                self.defineBlenderRenderMaterial(mat, custom_mat["value"])
+            else:
+                mat.use_nodes = True
+                # clear all nodes to start clean
+                for node in mat.node_tree.nodes:
+                    mat.node_tree.nodes.remove(node)
+                self.defineNodeTree(mat.node_tree, custom_mat)
+    def defineBlenderRenderMaterial(self, material, custom_mat_value):
+        print("define blender render material")
+        for property in custom_mat_value.keys():
+            print("property {}".format(property))
+            try:
+                if isinstance(custom_mat_value[property], bool) or isinstance(custom_mat_value[property], float) or isinstance(custom_mat_value[property], int) or isinstance(custom_mat_value[property], str):
+                    setattr(material, property, custom_mat_value[property])
+                elif isinstance(custom_mat_value[property], list):
+                    setattr(material, property,  [f for f in custom_mat_value[property]])
+                else:
+                    mat_prop = getattr(material, property)
+                    for p in custom_mat_value[property]:
+                        if hasattr(mat_prop, p):
+                            setattr(mat_prop, p, mat_prop[p])
+            except Exception as e:
+                print(e)
     def defineNodeTree(self, node_tree, custom_mat):
         print("create material")
         if "name" in custom_mat:
@@ -1737,7 +1853,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         print("get font paths")
         fontlocation = "c:\\Windows\\Fonts\\"
         if "fonts" in self.settings:
-            fontlocation = self.settings["fonts"]
+            fontlocation = self.relativeDirePath + self.settings["fonts"]
         if os.path.isfile(fontlocation + fontname + ".ttf"): 
             return (fontlocation + fontname + ".ttf")
         return 0

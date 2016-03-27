@@ -71,7 +71,39 @@
     },
     "scenes": [
         {
+            "name": "environment",
+            "RenderEngine": "BLENDER_RENDER",
+            "objects": [
+                {
+                    "name": "cube_smoke",
+                    "type": "cube",
+                    "material": "smoke_"
+                }
+            ],
+            "keyframes": [
+                {
+                    "frame": 1,
+                    "objects": [
+                        {
+                            "name": "cube_smoke",
+                            "position": {
+                                "x": 0,
+                                "y": 2,
+                                "z": 0
+                            },
+                            "scale": {
+                                "x": 2,
+                                "y": 2,
+                                "z": 2
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "secondscene",
+            "RenderEngine": "CYCLES",
             "composite": {
                 "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
             },
