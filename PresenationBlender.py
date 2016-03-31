@@ -220,7 +220,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         obj = scene.objects.active
         self.context = context
         settings = context.scene.presentation_settings
-        self.relativeDirePath = os.path.dirname(settings)
+        self.relativeDirePath = self.fixPath(os.path.dirname(settings))
         print(context.scene.presentation_settings)
         try:
             self.clearObjects()
@@ -441,7 +441,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             objectssettings = self.settings["Objects"]
             
             if "File" in objectssettings:
-                obj_location = os.path.join(self.relativeDirePath, objectssettings["File"]) 
+                obj_location = self.fixPath(os.path.join(self.relativeDirePath, objectssettings["File"])) 
                 with bpy.data.libraries.load(obj_location) as (data_from, data_to):
                     data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
                     for group in data_from.groups:
@@ -449,7 +449,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             
             if "Files" in objectssettings:
                 for i in range(len(objectssettings["Files"])):
-                    objlocation = os.path.join(self.relativeDirePath, objectssettings["Files"][i])
+                    objlocation = self.fixPath(os.path.join(self.relativeDirePath, objectssettings["Files"][i]))
                     print(objlocation);
                     with bpy.data.libraries.load(objlocation) as (data_from, data_to):
                         data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
@@ -464,7 +464,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
              
             for i in range(len(matsettings["Names"])):
                 matname = matsettings["Names"][i]
-                opath = os.path.join(self.relativeDirePath,  mat_location)
+                opath = self.fixPath(os.path.join(self.relativeDirePath,  mat_location))
                 print(opath)
                 with bpy.data.libraries.load(opath) as (data_from, data_to):
                     data_to.materials = [name for name in data_from.materials if not self.hasMaterialByName(name)]
@@ -1847,14 +1847,22 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if font.filepath.lower() == self.getFontPath(fontname).lower():
                 return font
         return 0
-
+    def fixPath(self, _path):
+        if os.path.sep == ("\\"):
+            return _path
+        return _path.replace("\\",  "/")
+    
     def getFontPath(self, fontname):
         print("get font paths")
         fontlocation = "c:\\Windows\\Fonts\\"
         if "fonts" in self.settings:
-            fontlocation = os.path.join(self.relativeDirePath, self.settings["fonts"])
+            fontlocation = self.fixPath(os.path.join(self.relativeDirePath, self.settings["fonts"]))
+        print("font location = " + fontlocation)
+        fontpath = (os.path.join(fontlocation , fontname + ".ttf"))
+        print(fontpath)
         if os.path.isfile(os.path.join(fontlocation , fontname + ".ttf")): 
-            return (os.path.join(fontlocation , fontname + ".ttf"))
+            
+            return fontpath
         return 0
 
     def ensureFontLoaded(self, fontname):
