@@ -1,4 +1,8 @@
 import json
+import os
+import sys
+import codecs
+import json
 from pptx import Presentation
 from pptx.shapes.placeholder import SlidePlaceholder
 from pptx.shapes.autoshape import Shape
@@ -13,8 +17,27 @@ from pptx.shapes.graphfrm import GraphicFrame
 from pptx.util import Length, Centipoints, Cm, Emu, Inches, Mm, Pt, Px
 import pptx
 import inspect
+
+file_name = "test6.pptx"
+output_file = "Output.json"
+write_image_to_local = False
+argv = sys.argv
+try:
+    index = argv.index("--") + 1
+except:
+    index = len(argv)
+
+argv = argv[index:]
+if(len(argv) > 0 and argv[0]):
+	file_name = (argv[0])
+if len(argv) > 1 and argv[1]:
+    output_file = argv[1]
+if len(argv) > 2 and argv[2]:
+    write_image_to_local = bool(argv[2])
+    
+    
 #prs = Presentation('test.pptx')
-prs = Presentation("test6.pptx")
+prs = Presentation(file_name)
 def iter_rPrs(txBody):
     for p in txBody.p_lst:
         for elm in p.content_children:
@@ -81,7 +104,7 @@ def applyParagraphs(res, _from):
                 runs.append(_run)
                 if run.font != None:
                     _run["font"] = captureFont(_run, run.font)
-        elif paragraph.text != None:
+        if paragraph.text != None:
             _paragraph["text"] = paragraph.text 
 def captureFont (res, _from):
     result = {}
@@ -181,13 +204,16 @@ for slide in prs.slides:
             panel["contenttype"] = shape.image.content_type
         
             # print(shape.image.blob)
-            # with open(shape.name + "." + shape.image.ext, "wb") as blob_file:
-            #     blob_file.write(shape.image.blob)
+            if write_image_to_local:
+                print("write_image_to_local {}".format(shape.name + "." + shape.image.ext))
+                with open(shape.name + "." + shape.image.ext, "wb") as blob_file:
+                    blob_file.write(shape.image.blob)
             print(shape.image)
         if hasattr(shape, "text_frame"):
             panel["auto_size"] = "{}".format(shape.text_frame.auto_size)
             if isinstance(shape.text_frame, TextFrame):
                 applyParagraphs(panel, shape.text_frame)
+                panel["text"] = shape.text_frame.text
                 # _paragraphs = []
                 # panel["paragraphs"] = _paragraphs
                 # for paragraph in shape.text_frame.paragraphs:
@@ -240,5 +266,5 @@ for slide in prs.slides:
 
 # print(json.dumps(output_slides, sort_keys=True, indent=4, separators=(',', ': ')))
 # prs.save('test.pptx')
-with open("Output.json", "w") as text_file:
+with open(output_file, "w") as text_file:
     text_file.write(json.dumps(output_slides, sort_keys=True, indent=4, separators=(',', ': ')))
