@@ -1641,7 +1641,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             print("create empty")
             bpy.ops.object.empty_add(type="PLAIN_AXES")
             result["object"] = self.context.active_object
-            
+        elif scene_object_config["type"] == "image":
+            bpy.ops.import_image.to_plane(
+                files=[{"name":scene_object_config["fileName"], "name":scene_object_config["fileName"]}], 
+                directory=scene_object_config["directory"], 
+                filter_image=True, 
+                filter_movie=True, 
+                filter_glob="", 
+                relative=False)
+            result["object"] = self.context.active_object
+            result["mesh"] = self.context.active_object.data
         elif scene_object_config["type"] == "lamp":
             print("create lamp")
             light = "POINT"

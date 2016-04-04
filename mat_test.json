@@ -7,11 +7,7 @@
             "Names": [
                 "OrbLight"
             ],
-            "Files": [
-                "D:\\dev\\Python\\Blender\\Presentation\\untitled.blend",
-                "D:\\dev\\git\\PresentationBlendResources\\Arms.blend",
-                "D:\\dev\\git\\PresentationBlendResources\\Arms1.blend"
-            ]
+            "Files": []
         },
         "Materials": {
             "File": "D:\\dev\\Python\\Blender\\Presentation\\Material\\mat.blend",
@@ -78,6 +74,12 @@
                     "name": "cube_smoke",
                     "type": "cube",
                     "material": "smoke_"
+                },
+                {
+                    "name": "image1",
+                    "fileName": "PT_hero_42_153645159.jpg",
+                    "type": "image",
+                    "directory": "D:\\dev\\Python\\Blender\\Presentation"
                 }
             ],
             "keyframes": [
@@ -95,6 +97,19 @@
                                 "x": 2,
                                 "y": 2,
                                 "z": 2
+                            }
+                        },
+                        {
+                            "name": "image1",
+                            "position": {
+                                "x": 2,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "scale": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
                             }
                         }
                     ]
@@ -238,6 +253,12 @@
                     "font": "mriamc",
                     "extrude": 0.1,
                     "material": "MedLightBlue"
+                },
+                {
+                    "name": "image_2",
+                    "fileName": "PT_hero_42_153645159.jpg",
+                    "type": "image",
+                    "directory": "D:\\dev\\Python\\Blender\\Presentation"
                 }
             ],
             "armatureframes": [],
@@ -359,6 +380,19 @@
                                     "z": 0
                                 },
                                 "distance": 8
+                            }
+                        },
+                        {
+                            "name": "image_2",
+                            "position": {
+                                "x": 2,
+                                "y": 1,
+                                "z": 0
+                            },
+                            "scale": {
+                                "x": 1,
+                                "y": 1,
+                                "z": 1
                             }
                         },
                         {

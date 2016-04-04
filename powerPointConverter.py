@@ -20,6 +20,7 @@ import inspect
 
 file_name = "test6.pptx"
 output_file = "Output.json"
+image_output = ''
 write_image_to_local = False
 argv = sys.argv
 try:
@@ -34,7 +35,8 @@ if len(argv) > 1 and argv[1]:
     output_file = argv[1]
 if len(argv) > 2 and argv[2]:
     write_image_to_local = bool(argv[2])
-    
+if len(argv) > 3 and argv[3]:
+    image_output = argv[3]
     
 #prs = Presentation('test.pptx')
 prs = Presentation(file_name)
@@ -206,7 +208,7 @@ for slide in prs.slides:
             # print(shape.image.blob)
             if write_image_to_local:
                 print("write_image_to_local {}".format(shape.name + "." + shape.image.ext))
-                with open(shape.name + "." + shape.image.ext, "wb") as blob_file:
+                with open( os.path.join(image_output, shape.name + "." + shape.image.ext) , "wb") as blob_file:
                     blob_file.write(shape.image.blob)
             print(shape.image)
         if hasattr(shape, "text_frame"):
