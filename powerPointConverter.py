@@ -122,7 +122,7 @@ def captureFont (res, _from):
     if _from.name != None:
         result["name"] = _from.name
     if _from.size != None:
-        result["size"] = _from.size
+        result["size"] = Length(_from.size).pt
     if _from.underline != None:
         result["underline"] == _from.underline
     return result
@@ -131,12 +131,23 @@ def applyMargin(res, _from):
     res["margin_right"] = Length(_from.margin_right).pt;
     res["margin_top"] = Length(_from.margin_top).pt;
     res["margin_bottom"] = Length(_from.margin_bottom).pt;
+def captureSlideLayout(res, _from):
+    res["placeholders"] = _from.placeholders
 output_slides = []
+presentationObj = {}
+presentationObj["slides"] = output_slides
+presentationObj["slide_height"] = Length(prs.slide_height).pt
+presentationObj["slide_width"] = Length(prs.slide_width).pt
 print("//////////////////////////////////////////////////////////// slide")
 for slide in prs.slides:
     print("------------------- slide")
     output_slide = []
-    output_slides.append({"slide": output_slide})
+    _parentSlide = {"slide": output_slide}
+    output_slides.append(_parentSlide)
+    
+    if hasattr(slide, "slide_layout"):
+        print(slide.slide_layout)
+        _parentSlide["slide_layout"] =  captureSlideLayout({}, slide.slide_layout)
     for shape in slide.shapes:
         print("%%%%%%%%%%%%%%%%%% - shape")
         print(shape)
@@ -262,6 +273,10 @@ for slide in prs.slides:
         if hasattr(shape, "rotation"):
             print("rotation {}".format(shape.rotation))
             panel["rotation"] = shape.rotation
+        if hasattr(shape, "is_placeholder") and shape.is_placeholder:
+            panel["placeholder_type"] = "{}".format(shape.placeholder_format.type)
+            panel["placeholder_idx"] = shape.placeholder_format.idx  
+            
         if hasattr(shape.part, "name"):
             print("name {}".format(shape.part.name))
             panel["name"] = shape.part.name or shape.name
@@ -269,4 +284,4 @@ for slide in prs.slides:
 # print(json.dumps(output_slides, sort_keys=True, indent=4, separators=(',', ': ')))
 # prs.save('test.pptx')
 with open(output_file, "w") as text_file:
-    text_file.write(json.dumps(output_slides, sort_keys=True, indent=4, separators=(',', ': ')))
+    text_file.write(json.dumps(presentationObj, sort_keys=True, indent=4, separators=(',', ': ')))
