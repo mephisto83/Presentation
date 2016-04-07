@@ -262,6 +262,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.processSettings(scene)
             self.processWorld(scene)
             self.prolightingProcess(scene)
+            print("start proskies processing")
+            self.proskiesProcess(scene)
             self.armatures = self.loadArmaturesConfig(scene)
             newobjects = self.createObjectsUsed(scene)
             self.createStage(scene)
@@ -290,7 +292,29 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 except:
                     return value
         return value
-       
+    def proskiesProcess(self, scene):
+        print("Pro skies processing")
+        if "proskies" in scene:
+            if scene["proskies"] == False:
+                return
+            else:
+                print("Found : Pro skies processing")
+                proskies_config = scene["proskies"]
+                if "skies" in proskies_config:
+                    skies_config = proskies_config["skies"]
+                    if "use_pl_skies" in skies_config and skies_config["use_pl_skies"]:
+                        print("Using pl_skies")
+                        setattr(bpy.context.scene.world.pl_skies_settings, 'use_pl_skies', True);
+                        if "evn_previews" in skies_config:
+                            try:
+                                setattr(bpy.context.scene.world, "evn_previews", skies_config["evn_previews"])
+                                print("set environment preview")
+                            except:
+                                pass
+                        for key in skies_config:
+                            val = self.parseValue(skies_config[key])
+                            if hasattr(bpy.context.scene.world.pl_skies_settings, key):
+                                setattr(bpy.context.scene.world.pl_skies_settings, key , val)   
     def prolightingProcess(self, scene):
         if "prolighting" in scene:
             firefixes = False
