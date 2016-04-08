@@ -21,12 +21,18 @@
                     "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
                 },
                 {
-                    "name": "custom_material",
+                    "name": "blue_light_custom",
                     "value": {
                         "nodes": [
                             {
                                 "_type": "ShaderNodeEmission",
                                 "_name": "emission",
+                                "_animation": [
+                                    {
+                                        "name": "target1",
+                                        "index": 0
+                                    }
+                                ],
                                 "inputs": [
                                     {
                                         "index": 0,
@@ -122,6 +128,38 @@
             "composite": {
                 "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
             },
+            "materialframes": [
+                {
+                    "frame": 1,
+                    "objects": [
+                        {
+                            "material": "blue_light_custom",
+                            "name": "target1",
+                            "value": [
+                                0,
+                                1,
+                                1,
+                                1
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "frame": 20,
+                    "objects": [
+                        {
+                            "material": "blue_light_custom",
+                            "name": "target1",
+                            "value": [
+                                1,
+                                1,
+                                0,
+                                1
+                            ]
+                        }
+                    ]
+                }
+            ],
             "objects": [
                 {
                     "name": "second_scene",
@@ -131,6 +169,15 @@
                     "font": "mriamc",
                     "extrude": 0.1,
                     "material": "ShinyMetal"
+                },
+                {
+                    "name": "custom_mat_obj",
+                    "type": "text",
+                    "align": "RIGHT",
+                    "value": "Custom Mat Object",
+                    "font": "mriamc",
+                    "extrude": 0.1,
+                    "material": "blue_light_custom"
                 }
             ],
             "keyframes": [
@@ -143,6 +190,14 @@
                                 "x": 0,
                                 "y": 2,
                                 "z": 0
+                            }
+                        },
+                        {
+                            "name": "custom_mat_obj",
+                            "position": {
+                                "x": 2,
+                                "y": 3,
+                                "z": 1
                             }
                         }
                     ]

@@ -212,6 +212,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     presentation_armatures = []
     presentation_objects = []
     presentation_target_bones = []
+    presentation_material_animation_points = []
     # total = bpy.props.IntProperty(name="Steps", default=2, min=1, max=100)
 
     def execute(self, context):
@@ -278,10 +279,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.processArmatures(scene)
             self.processKeyFrames(scene)
             self.processArmatureFrames(scene)
+            self.processMaterialKeyFrames(scene)
         for scene in self.scenes:
             self.switchToScene(scene["name"])
             self.setupComposite(scene)
-            
+        
     def parseValue(self, value):
         if isinstance(value, bool) or isinstance(value, float) or isinstance(value, int) or isinstance(value, str):
             try:
@@ -508,6 +510,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def defineMaterial(self,  custom_mat):
         if "name" in custom_mat:
             mat_name = custom_mat["name"]
+            if self.doesMaterialExistAlready(mat_name):
+                return
             # print("create material called {}".format(mat_name))
             mat = bpy.data.materials.new(name=mat_name)
             if mat == None:
@@ -536,6 +540,14 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                             setattr(mat_prop, p, mat_prop[p])
             except Exception as e:
                 print(e)
+    def doesMaterialExistAlready(self, name):
+        for item in bpy.data.materials:
+            if item.name == name:
+                print("found material")
+                return True
+        print("no material found")
+        return False
+        
     def defineNodeTree(self, node_tree, custom_mat):
         # print("create material")
         if "name" in custom_mat:
@@ -548,14 +560,15 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     # print("creating nodes in material")
                     node_definitions = material_definition["nodes"]
                     for node in node_definitions:
-                        print(node)
                         # print("creating {}".format(node["_type"]))
                         newnode = node_tree.nodes.new(type=node["_type"])
                         if "location" in node:
                             newnode.location = node["location"]
                         # print("created type")
+                        
                         node_tree_dict[node["_name"]] = newnode
                         members = inspect.getmembers(newnode)
+                        
                         for member in members:
                             if any(member[0] in s for s in validmembers):
                                 # print("found {}".format(member[0]))
@@ -616,6 +629,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                             for inputs in node["inputs"]:
                                 # print("setting node's input")
                                 newnode.inputs[inputs["index"]].default_value = inputs["value"]
+                        if "_animation" in node:
+                            _animationPoints = node["_animation"]
+                            for _animationPoint in _animationPoints:
+                                point = { 
+                                            "material": custom_mat["name"], 
+                                            "name" : _animationPoint["name"], 
+                                            "index": _animationPoint["index"], 
+                                            "node" : newnode 
+                                            }
+                                self.presentation_material_animation_points.append(point)
                 if "links" in material_definition:
                     # print("links in material definition found")
                     link_definitions = material_definition["links"]
@@ -973,6 +996,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             for k in range(len(keyframes)):
                 keyframe = keyframes[k]
                 self.setArmatureObjectsProperties(keyframe)
+    def processMaterialKeyFrames(self, scene):
+        if "materialframes" in scene:
+            materialframes = scene["materialframes"]
+            for keyframe in materialframes:
+                self.setMaterialObjectProperties(keyframe)
     def setObjectsProperty(self, keyframe):
         # print("set objects property")
         objects = keyframe["objects"]
@@ -1021,7 +1049,30 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 self.setArmatureObjectProperties({"object": rig.pose.bones[obj["name"]]}, objects[i], keyframe["frame"])
                 # print("set armature properties")
                 bpy.ops.object.mode_set(mode='OBJECT')
-                
+    def getMaterialObject(self, name, material):
+        print(self.presentation_material_animation_points)
+        for mat_Target in self.presentation_material_animation_points:
+            if mat_Target["name"] == name and mat_Target["material"] == material:
+                return mat_Target
+        return None
+    def setMaterialObjectProperties(self, keyframe):
+        print("getting objects from keyframe object")
+        objects = keyframe["objects"]
+        print("set material object properties")
+        for _obj in objects:
+            obj = self.getMaterialObject(_obj["name"], _obj["material"])
+            if obj == None:
+                raise ValueError("material not found")
+            print("got material object")
+            mat_node = obj["node"]
+            print("got material node")
+            print(_obj)
+            print(mat_node)
+            mat_node_input = mat_node.inputs[obj["index"]]
+            print("got material nod input")
+            setattr(mat_node_input, "default_value", _obj["value"])
+            mat_node_input.keyframe_insert(data_path="default_value",frame=keyframe["frame"])
+                    
     def parentCreatedObjects(self, scene):
         # print("Parent created objects")
         # for i in range(len(self.scenes)):
@@ -1898,7 +1949,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         del self.presentation_objects[:]
         del self.presentation_armatures[:]
         del self.presentation_target_bones[:]
-
+        del self.presentation_material_animation_points[:]
+        
         bpy.ops.object.mode_set(mode='OBJECT')
         bpy.ops.object.select_all(action = 'SELECT')
         bpy.ops.object.delete(use_global=False)
