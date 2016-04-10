@@ -1,5 +1,6 @@
 
-# blender -b --python PresentationInstall.py
+# blender -b --python /home/ubuntu/PresentationInstall.py
+# ./blender -b --python /home/ubuntu/PresentationInstall.py
 
 import os.path
 import bpy
@@ -20,22 +21,22 @@ print("Install presentation addons")
 hdriZip = os.path.join(basepath, "hdris.zip")
 
 # pro_lighting_library = "D:\\Uber\\library.zip"
-pro_lighting_library = os.path.join(basepath, "library.zip"
+pro_lighting_library = os.path.join(basepath, "library.zip")
 
 # location = "D:\\dev\\Python\\Blender\\Presentation\\PresenationBlender.py"
-location = os.path.join(basepath, "PresenationBlender.py"
+location = os.path.join(basepath, "PresenationBlender.py")
 
 # pro_skies_location = "D:\\Blender\\Addons\\pro_lighting_skies_ultimate_v1.2.zip"
-pro_skies_location = os.path.join(basepath, "pro_lighting_skies_ultimate_v1.2.zip"
+pro_skies_location = os.path.join(basepath, "pro_lighting_skies_ultimate_v1.2.zip")
 
 # pro_lighting_studio_location = "D:\\Blender\\Addons\\pro_lighting_studio.zip"
-pro_lighting_studio_location = os.path.join(basepath, "pro_lighting_studio.zip"
+pro_lighting_studio_location = os.path.join(basepath, "pro_lighting_studio.zip")
 
 # pro_skies_hdri_location = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\\Blender\\2.76\\scripts\\addons\\pro_lighting_skies_ultimate"
-pro_skies_hdri_location = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_skies_ultimate"
+pro_skies_hdri_location = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_skies_ultimate")
 
 # pro_lighting_studio_location_libs = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\\Blender\\2.76\\scripts\\addons\\pro_lighting_studio"
-pro_lighting_studio_location_libs = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_studio"
+pro_lighting_studio_location_libs = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_studio")
 
 # bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")¶
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
