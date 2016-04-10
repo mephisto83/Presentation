@@ -13,6 +13,34 @@ import bpy.types
 import inspect
 from types import *
 validmembers = ["node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+RENDERSETTINGS = [
+        "use_compositing",
+        "use_sequencer"]
+CYCLESRENDERSETTINGS = ["use_animated_seed",
+        "sample_clamp_direct",
+        "sample_clamp_indirect",
+        "aa_samples",
+        "progressive",
+        "diffuse_samples",
+        "glossy_samples",
+        "transmission_samples",
+        "ao_samples",
+        "mesh_light_samples",
+        "subsurface_samples",
+        "volume_samples",
+        "sampling_pattern",
+        "transparent_max_bounces",
+        "transparent_min_bounces",
+        "use_transparent_shadows",
+        "caustics_reflective",
+        "caustics_refractive",
+        "blur_glossy",
+        "max_bounces",
+        "min_bounces" ,
+        "diffuse_bounces",
+        "glossy_bounces",
+        "transmission_bounces",
+        "volume_bounces"]
                
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -454,6 +482,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.context.scene.cycles.samples = 200
         bpy.context.scene.cycles.preview_samples = 0
 
+        for _setting in RENDERSETTINGS:
+            if _setting in self.settings and hasattr(bpy.context.scene.render, _setting):
+                setattr(bpy.context.scene.render, _setting, self.settings[_setting])
+        for _setting in CYCLESRENDERSETTINGS:
+            if _setting in self.settings and hasattr(bpy.context.scene.cycles, _setting):
+                setattr(bpy.context.scene.cycles, _setting, self.settings[_setting])
         
         if "FrameEnd" in self.settings:
             # print("frameend in settings")
@@ -813,8 +847,6 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 config = self.presentation_armatures[i]["configuration"]
                 # print("armature chains")
                 # print("len(self.presentation_armatures)")
-                print(len(self.presentation_armatures))
-                print(i)
                 chains = self.armatures[i]["chain"]
                 # print("has armature chains")
                 rig = self.presentation_armatures[i]["rig"]
@@ -1056,20 +1088,13 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 return mat_Target
         return None
     def setMaterialObjectProperties(self, keyframe):
-        print("getting objects from keyframe object")
-        objects = keyframe["objects"]
-        print("set material object properties")
+        objects = keyframe["objects"] 
         for _obj in objects:
             obj = self.getMaterialObject(_obj["name"], _obj["material"])
             if obj == None:
                 raise ValueError("material not found")
-            print("got material object")
             mat_node = obj["node"]
-            print("got material node")
-            print(_obj)
-            print(mat_node)
             mat_node_input = mat_node.inputs[obj["index"]]
-            print("got material nod input")
             setattr(mat_node_input, "default_value", _obj["value"])
             mat_node_input.keyframe_insert(data_path="default_value",frame=keyframe["frame"])
                     
@@ -1314,8 +1339,6 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             # print("got track to target")
             if targetObj != None:
                 # print("found track to target")
-                print(targetObj)
-                print(meshobject)
                 cns = meshobject.constraints.new("TRACK_TO")
                 cns.target = targetObj
                 if "track_axis" in config:

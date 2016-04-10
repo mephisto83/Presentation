@@ -2,12 +2,42 @@
     "settings": {
         "RenderEngine": "CYCLES",
         "Device": "GPU",
+        "use_animated_seed": true,
+        "sample_clamp_direct": 0,
+        "sample_clamp_indirect": 0,
+        "aa_samples": 100,
+        "progressive": "BRANCHED_PATH",
+        "diffuse_samples": 14,
+        "glossy_samples": 2,
+        "transmission_samples": 2,
+        "ao_samples": 1,
+        "mesh_light_samples": 1,
+        "subsurface_samples": 1,
+        "volume_samples": 1,
+        "sampling_pattern": "SOBOL",
+        "transparent_max_bounces": 8,
+        "transparent_min_bounces": 8,
+        "use_transparent_shadows": true,
+        "caustics_reflective": false,
+        "caustics_refractive": false,
+        "blur_glossy": 0,
+        "max_bounces": 10,
+        "min_bounces": 3,
+        "diffuse_bounces": 3,
+        "glossy_bounces": 7,
+        "transmission_bounces": 9,
+        "volume_bounces": 4,
+        "use_compositing": true,
+        "use_sequencer": true,
+        "FrameEnd": 100,
         "Objects": {
             "File": "D:\\dev\\Python\\Blender\\Presentation\\v1\\Presenation.Blender\\Presenation.Blender\\objects.blend",
             "Names": [
                 "OrbLight"
             ],
-            "Files": []
+            "Files": [
+                "D:\\dev\\git\\PresentationMaterials\\Grid_Material.blend"
+            ]
         },
         "Materials": {
             "File": "D:\\dev\\Python\\Blender\\Presentation\\Material\\mat.blend",
@@ -162,6 +192,11 @@
             ],
             "objects": [
                 {
+                    "name": "floor",
+                    "group": "floor",
+                    "type": "custom"
+                },
+                {
                     "name": "second_scene",
                     "type": "text",
                     "align": "RIGHT",
@@ -189,6 +224,14 @@
                             "position": {
                                 "x": 0,
                                 "y": 2,
+                                "z": 0
+                            }
+                        },
+                        {
+                            "name": "floor",
+                            "position": {
+                                "x": 0,
+                                "y": 0,
                                 "z": 0
                             }
                         },
