@@ -1,20 +1,28 @@
 
-# blender -b --python /home/ubuntu/PresentationInstall.py
+# blender -b --python PresentationInstall.py
 # ./blender -b --python /home/ubuntu/PresentationInstall.py
 
 import os.path
 import bpy
 import zipfile
+import sys
 
 ver = "001"
-
-basepath = "/home/ubuntu"
-blender_version_path = os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
-blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
-blender_resources_path_target= os.path.join(basepath, "blender_resources")
-uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
-uber_path_target = os.path.join(basepath, "uber")
-
+if sys.platform == "win32":
+    basepath = "D:\\Uber"
+    blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.76" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
+    blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
+    blender_resources_path_target= os.path.join(basepath, "blender_resources")
+    uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
+    uber_path_target = os.path.join(basepath, "uber")
+else:
+    basepath = os.path.expanduser("~")
+    blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", "2.77")
+    blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
+    blender_resources_path_target= os.path.join(basepath, "blender_resources")
+    uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
+    uber_path_target = os.path.join(basepath, "uber")
+    
 print("Install presentation addons")
 
 # hdriZip = "D:\\Uber\\hdris.zip"
@@ -33,10 +41,10 @@ pro_skies_location = os.path.join(basepath, "pro_lighting_skies_ultimate_v1.2.zi
 pro_lighting_studio_location = os.path.join(basepath, "pro_lighting_studio.zip")
 
 # pro_skies_hdri_location = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\\Blender\\2.76\\scripts\\addons\\pro_lighting_skies_ultimate"
-pro_skies_hdri_location = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_skies_ultimate")
+pro_skies_hdri_location = os.path.join(blender_version_path, "scripts", "addons", "pro_lighting_skies_ultimate")
 
 # pro_lighting_studio_location_libs = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\\Blender\\2.76\\scripts\\addons\\pro_lighting_studio"
-pro_lighting_studio_location_libs = os.path.join(basepath, blender_version_path, "scripts/addons/pro_lighting_studio")
+pro_lighting_studio_location_libs = os.path.join(blender_version_path, "scripts", "addons", "pro_lighting_studio")
 
 # bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")¶
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
@@ -71,5 +79,12 @@ unzipToLocation(pro_lighting_library, pro_lighting_studio_location_libs)
 #     z.extract(name, outpath)
 # fh.close()
 
-#bpy.ops.wm.addon_enable(module="PresenationBlender")   
-#bpy.ops.wm.addon_enable(module="pro_lighting_skies_ultimate")   
+print("enabling PresenationBlender")
+bpy.ops.wm.addon_enable(module="PresenationBlender")   
+print("enabling pro_lighting_skies_ultimate")
+bpy.ops.wm.addon_enable(module="pro_lighting_skies_ultimate")     
+print("enabling pro_lighting_studio")
+bpy.ops.wm.addon_enable(module="pro_lighting_studio")
+
+print("save user settings")
+bpy.ops.wm.save_userpref()
