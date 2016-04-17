@@ -85,6 +85,9 @@ print("enabling pro_lighting_skies_ultimate")
 bpy.ops.wm.addon_enable(module="pro_lighting_skies_ultimate")     
 print("enabling pro_lighting_studio")
 bpy.ops.wm.addon_enable(module="pro_lighting_studio")
+print("enabling io_import_images_as_planes")
+bpy.ops.wm.addon_enable(module="io_import_images_as_planes")
+    
 
 print("save user settings")
 bpy.ops.wm.save_userpref()
