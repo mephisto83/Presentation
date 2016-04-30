@@ -13,7 +13,7 @@ import bpy.types
 import inspect
 from types import *
 
-debugmode = False
+debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
         print(val)
@@ -476,7 +476,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.context.scene.render.resolution_y = float(self.settings["resolution_y"])
         else:
             bpy.context.scene.render.resolution_y = 720
-
+        if "filepath" in self.settings and self.settings["filepath"]:
+            bpy.context.scene.render.filepath = os.path.relpath(self.settings["filepath"]);
+            
         bpy.context.scene.render.tile_y = 256
         bpy.context.scene.render.tile_x = 256
         
@@ -1311,23 +1313,39 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "dof_object" in childConfig:
             target = self.getObjectByName(childConfig["dof_object"])
             if target != None:
-                tempObject["object"].dof_object = target["object"]
+                tempObject["object"].data.dof_object = target["object"]
         if "gpu_dof" in childConfig:
             gpu_dof = childConfig["gpu_dof"]
             if "fstop" in gpu_dof:
-                tempObject["object"].fstop = gpu_dof["fstop"]
+                tempObject["object"].data.gpu_dof.fstop = gpu_dof["fstop"]
+            if "fstop_anim" in gpu_dof:
+                tempObject["object"].data.gpu_dof.keyframe_insert(data_path="fstop", frame=frame)
             if "use_high_quality" in gpu_dof:
-                tempObject["object"].use_high_quality = gpu_dof["use_high_quality"]
+                tempObject["object"].data.gpu_dof.use_high_quality = gpu_dof["use_high_quality"]
         if "cycles" in childConfig:
             cycles = childConfig["cycles"]
+            if "aperture_type" in cycles:
+                tempObject["object"].data.cycles.aperture_type = cycles["aperture_type"]
             if "aperture_size" in cycles:
-                tempObject["object"].aperture_size = cycles["aperture_size"]
+                tempObject["object"].data.cycles.aperture_size = cycles["aperture_size"]
+            if "aperture_size_anim" in cycles:
+                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_size", frame=frame)
+            if "aperture_fstop" in cycles:
+                tempObject["object"].data.cycles.aperture_fstop = cycles["aperture_fstop"]
+            if "aperture_fstop_anim" in cycles:
+                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_fstop", frame=frame)
             if "aperture_blades" in cycles:
-                tempObject["object"].aperture_blades = cycles["aperture_blades"]
+                tempObject["object"].data.cycles.aperture_blades = cycles["aperture_blades"]
+            if "aperture_blades_anim" in cycles:
+                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_blades", frame=frame)
             if "aperture_rotation" in cycles:
-                tempObject["object"].aperture_rotation = cycles["aperture_rotation"]
+                tempObject["object"].data.cycles.aperture_rotation = cycles["aperture_rotation"]
+            if "aperture_rotation_anim" in cycles:
+                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_rotation", frame=frame)
             if "aperture_ratio" in cycles:
-                tempObject["object"].aperture_ratio = cycles["aperture_ratio"]
+                tempObject["object"].data.cycles.aperture_ratio = cycles["aperture_ratio"]
+            if "aperture_ratio_anim" in cycles:
+                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_ratio", frame=frame)
         debugPrint("-======completed applying config====-")
 
     def limit_rotation(self, obj, config, keyframe, frame):
@@ -1584,6 +1602,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "name" in obj:
                 if obj["name"] == name and obj["scene"] == self.scene:
                     return obj
+        for obj in bpy.data.objects:
+            if obj.name == name:
+                newobject = { "name" : name, "object" : obj }
+                self.presentation_objects.append(newobject)
+                return newobject
         return 0
     def getBoneByName(self, name):
         for i in range(len(self.presentation_target_bones)):
