@@ -269,6 +269,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("loaded config json")
             self.processAnimation(obj)
             bpy.ops.file.pack_all()
+            bpy.ops.file.unpack_all(method='USE_LOCAL')
         except Exception as e:
             debugPrint("didnt work out") 
             debugPrint(e)
