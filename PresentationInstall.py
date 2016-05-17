@@ -8,6 +8,7 @@ import zipfile
 import sys
 
 ver = "001"
+install_lights = True;
 if sys.platform == "win32":
     basepath = os.getcwd() #os.path.dirname(os.path.realpath(__file__))
     blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.76" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
@@ -16,7 +17,7 @@ if sys.platform == "win32":
     uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
     uber_path_target = os.path.join(basepath, "uber")
 else:
-    basepath = os.path.expanduser("~")
+    basepath =  "/" + os.path.join("home","ubuntu")# os.path.expanduser("~")
     blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", "2.77")
     blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
     blender_resources_path_target= os.path.join(basepath, "blender_resources")
@@ -49,9 +50,9 @@ pro_lighting_studio_location_libs = os.path.join(blender_version_path, "scripts"
 # bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")¶
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 
-bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=pro_skies_location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
-
-bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=pro_lighting_studio_location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
+if install_lights:
+    bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=pro_skies_location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
+    bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=pro_lighting_studio_location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 
 def unzipToLocation(file, to):
     fh = open(file, 'rb')
@@ -63,8 +64,9 @@ def unzipToLocation(file, to):
 
 unzipToLocation(uber_path_file, uber_path_target)
 unzipToLocation(blender_resources_path, blender_resources_path_target)
-unzipToLocation(hdriZip, pro_skies_hdri_location)
-unzipToLocation(pro_lighting_library, pro_lighting_studio_location_libs)
+if install_lights:
+    unzipToLocation(hdriZip, pro_skies_hdri_location)
+    unzipToLocation(pro_lighting_library, pro_lighting_studio_location_libs)
 # fh = open(hdriZip, 'rb')
 # z = zipfile.ZipFile(fh)
 # for name in z.namelist():
