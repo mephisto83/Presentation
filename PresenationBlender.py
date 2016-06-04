@@ -344,7 +344,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         setattr(bpy.context.scene.world.pl_skies_settings, 'use_pl_skies', True);
                         if "evn_previews" in skies_config:
                             try:
-                                setattr(bpy.context.scene.world, "evn_previews", skies_config["evn_previews"])
+                                setattr(bpy.context.scene.world, "env_previews", skies_config["evn_previews"])
                                 debugPrint("set environment preview")
                             except:
                                 pass
