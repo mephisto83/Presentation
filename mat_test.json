@@ -105,6 +105,27 @@
         {
             "name": "environment",
             "RenderEngine": "BLENDER_RENDER",
+            "groups": [
+                {
+                    "name": "ARandomGroup",
+                    "file": "D:\\dev\\git\\PresentationMaterials\\blend\\Test.blend",
+                    "position": {
+                        "x": 1,
+                        "y": 1,
+                        "z": 1
+                    },
+                    "rotation": {
+                        "x": 51,
+                        "y": 10,
+                        "z": 31
+                    },
+                    "scale": {
+                        "x": 2,
+                        "y": 2,
+                        "z": 2
+                    }
+                }
+            ],
             "objects": [
                 {
                     "name": "cube_smoke",
