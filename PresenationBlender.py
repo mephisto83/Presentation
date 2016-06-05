@@ -1671,28 +1671,29 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def attachGroups(self, scene):
         if "groups" in scene:
             groups = scene["groups"]
-            for groupData in groups:
-                file = groupData["file"]
-                name = groupData["name"]
-                with bpy.data.libraries.load(file) as (df, dt):
-                    dt.groups = [name]
-                group = bpy.data.groups[name]
-                instance = bpy.data.objects.new("dupli_group", None)
-                instance.dupli_type = "GROUP"
-                instance.dupli_group = group
-                self.context.scene.objects.link(instance)
-                obj = { "object" : instance }
-                keyframe = True
-                frame = 1
-                if "position" in groupData:
-                    pos = groupData["position"]
-                    self.translation(obj, pos, keyframe, frame)
-                if "scale" in groupData:
-                    pos = groupData["scale"]
-                    self.scale(obj, pos, keyframe, frame)
-                if "rotation" in groupData:
-                    pos = groupData["rotation"]
-                    self.rotation(obj, pos, keyframe, frame)
+            if groups != None:
+                for groupData in groups:
+                    file = groupData["file"]
+                    name = groupData["name"]
+                    with bpy.data.libraries.load(file) as (df, dt):
+                        dt.groups = [name]
+                    group = bpy.data.groups[name]
+                    instance = bpy.data.objects.new("dupli_group", None)
+                    instance.dupli_type = "GROUP"
+                    instance.dupli_group = group
+                    self.context.scene.objects.link(instance)
+                    obj = { "object" : instance }
+                    keyframe = True
+                    frame = 1
+                    if "position" in groupData:
+                        pos = groupData["position"]
+                        self.translation(obj, pos, keyframe, frame)
+                    if "scale" in groupData:
+                        pos = groupData["scale"]
+                        self.scale(obj, pos, keyframe, frame)
+                    if "rotation" in groupData:
+                        pos = groupData["rotation"]
+                        self.rotation(obj, pos, keyframe, frame)
                     
                     
     def createObjectsUsed(self, scene):
