@@ -18,7 +18,7 @@ from pptx.util import Length, Centipoints, Cm, Emu, Inches, Mm, Pt, Px
 import pptx
 import inspect
 
-file_name = "test6.pptx"
+file_name = "agents.pptx"
 output_file = "Output.json"
 image_output = ''
 write_image_to_local = False
@@ -37,7 +37,7 @@ if len(argv) > 2 and argv[2]:
     write_image_to_local = bool(argv[2])
 if len(argv) > 3 and argv[3]:
     image_output = argv[3]
-    
+image_count = 0
 #prs = Presentation('test.pptx')
 prs = Presentation(file_name)
 def iter_rPrs(txBody):
@@ -215,11 +215,14 @@ for slide in prs.slides:
             panel["filename"] = shape.image.filename
             panel["fileext"] = shape.image.ext
             panel["contenttype"] = shape.image.content_type
-        
+            panel["imagefilename"] = None
             # print(shape.image.blob)
             if write_image_to_local:
-                print("write_image_to_local {}".format(shape.name + "." + shape.image.ext))
-                with open( os.path.join(image_output, shape.name + "." + shape.image.ext) , "wb") as blob_file:
+                image_count  = 1 + image_count
+                image_name = shape.name + str(image_count)  + "." + shape.image.ext
+                print("write_image_to_local {}".format(image_name))
+                panel["imagefilename"] = image_name
+                with open( os.path.join(image_output, image_name) , "wb") as blob_file:
                     blob_file.write(shape.image.blob)
             print(shape.image)
         if hasattr(shape, "text_frame"):

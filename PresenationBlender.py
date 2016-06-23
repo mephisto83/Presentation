@@ -480,8 +480,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "filepath" in self.settings and self.settings["filepath"]:
             bpy.context.scene.render.filepath = os.path.relpath(self.settings["filepath"]);
             
-        bpy.context.scene.render.tile_y = 256
-        bpy.context.scene.render.tile_x = 256
+        bpy.context.scene.render.tile_y = 64
+        bpy.context.scene.render.tile_x = 64
         
         if "fps" in self.settings:
             debugPrint("fps in settings")
@@ -1674,6 +1674,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if groups != None:
                 for groupData in groups:
                     file = groupData["file"]
+                    file = self.fixPath(os.path.join(self.relativeDirePath,  file))
                     name = groupData["name"]
                     with bpy.data.libraries.load(file) as (df, dt):
                         dt.groups = [name]
