@@ -329,6 +329,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 except:
                     return value
         return value
+        
     def proskiesProcess(self, scene):
         debugPrint("Pro skies processing")
         if "proskies" in scene:
