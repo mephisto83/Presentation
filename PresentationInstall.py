@@ -11,7 +11,7 @@ ver = "001"
 install_lights = True;
 if sys.platform == "win32":
     basepath = os.getcwd() #os.path.dirname(os.path.realpath(__file__))
-    blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.76" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
+    blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.77" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
     blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
     blender_resources_path_target= os.path.join(basepath, "blender_resources")
     uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
@@ -47,7 +47,7 @@ pro_skies_hdri_location = os.path.join(blender_version_path, "scripts", "addons"
 # pro_lighting_studio_location_libs = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\\Blender\\2.76\\scripts\\addons\\pro_lighting_studio"
 pro_lighting_studio_location_libs = os.path.join(blender_version_path, "scripts", "addons", "pro_lighting_studio")
 
-# bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")¶
+# bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 
 if install_lights:
