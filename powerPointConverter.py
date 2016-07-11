@@ -69,13 +69,17 @@ def captureFill(fill):
     result = {}
     print(fill.type)
     if fill.type != None:
-        print(fill.fore_color)
-        result["fore_color"] = captureColor(fill.fore_color)
+        try:
+            if hasattr(fill, "fore_color"):
+                print(fill.fore_color)
+                result["fore_color"] = captureColor(fill.fore_color)
+        except Exception:
+            result["fore_color"] = None
     return result
 def captureTextFrame(text_frame):
     result = {}
     if text_frame != None:
-        applyMargin(result, text_frame)    
+        applyMargin(result, text_frame)
         applyParagraphs(result, text_frame)
         if text_frame.word_wrap != None:
             result["word_wrap"] = text_frame.word_wrap 
@@ -114,17 +118,29 @@ def captureFont (res, _from):
     if _from.bold  != None:
         result["bold"] = _from.bold
     if _from.italic  != None:
-        result["italic"] = _from.italic
+        try:
+            result["italic"] = _from.italic
+        except:
+            result["italic"] = None
     if _from.color != None:
         result["color"] = captureColor(_from.color)
     if _from.fill != None:
         result["fill"] = captureFill(_from.fill)
     if _from.name != None:
-        result["name"] = _from.name
+        try:
+            result["name"] = _from.name
+        except:
+            result["name"] = None
     if _from.size != None:
-        result["size"] = Length(_from.size).pt
+        try:
+            result["size"] = Length(_from.size).pt
+        except:
+            result["size"] = None
     if _from.underline != None:
-        result["underline"] == _from.underline
+        try:
+            result["underline"] == _from.underline
+        except:
+            result["underline"] = None
     return result
 def applyMargin(res, _from):
     res["margin_left"] = Length(_from.margin_left).pt;

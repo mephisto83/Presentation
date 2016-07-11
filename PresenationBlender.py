@@ -329,7 +329,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 except:
                     return value
         return value
-        
+
     def proskiesProcess(self, scene):
         debugPrint("Pro skies processing")
         if "proskies" in scene:
@@ -1253,13 +1253,18 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("track target")
             target = config["target"]
             target_obj = self.getObjectByName(target)
+            debugPrint("target_obj")
+            debugPrint(target)
             bpy.ops.object.select_all(action='DESELECT')
             obj["object"].select = True
+            debugPrint("adding constraint")
             constraint = obj["object"].constraints.new(type='TRACK_TO')
+            debugPrint("adding constraint")
             constraint.target = target_obj["object"]
             constraint.track_axis = "TRACK_NEGATIVE_Z"
             constraint.up_axis = "UP_Y"
-
+            debugPrint("added constraints")
+            
         if "rotation" in config and config["rotation"]: 
             rotation = config["rotation"] 
             self.rotation(obj, rotation, True, frame)
