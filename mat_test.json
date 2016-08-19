@@ -36,7 +36,7 @@
                 "OrbLight"
             ],
             "Files": [
-                "D:\\Uber\\blender_resources\\PresentationMaterials\\blend\\Grid_Material.blend"
+                "D:\\UberResources\\Environments\\Grid_Material.blend"
             ]
         },
         "Materials": {
@@ -49,6 +49,9 @@
             "Materials": [
                 {
                     "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp.json"
+                },
+                {
+                    "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp_2.json"
                 },
                 {
                     "name": "blue_light_custom",

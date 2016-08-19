@@ -1,0 +1,225 @@
+{
+    "composite": {
+        "links": [
+            {
+                "from": {
+                    "name": "node_2",
+                    "port": "Combined"
+                },
+                "to": {
+                    "name": "node_0",
+                    "port": "Image"
+                }
+            },
+            {
+                "from": {
+                    "name": "node_2",
+                    "port": "Combined"
+                },
+                "to": {
+                    "name": "node_1",
+                    "port": "Image"
+                }
+            }
+        ],
+        "nodes": [
+            {
+                "_name": "node_0",
+                "_type": "CompositorNodeViewer",
+                "center_x": 0.5,
+                "center_y": 0.5,
+                "color": [
+                    0.6079999804496765,
+                    0.6079999804496765,
+                    0.6079999804496765
+                ],
+                "height": 100.0,
+                "inputs": [
+                    {
+                        "index": 0,
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "index": 1,
+                        "value": 1.0
+                    },
+                    {
+                        "index": 2,
+                        "value": 1.0
+                    }
+                ],
+                "location": [
+                    467.6780700683594,
+                    550.6952514648438
+                ],
+                "name": "Viewer",
+                "type": "VIEWER",
+                "use_alpha": true,
+                "width": 140.0
+            },
+            {
+                "_name": "node_1",
+                "_type": "CompositorNodeComposite",
+                "color": [
+                    0.6079999804496765,
+                    0.6079999804496765,
+                    0.6079999804496765
+                ],
+                "height": 100.0,
+                "inputs": [
+                    {
+                        "index": 0,
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "index": 1,
+                        "value": 1.0
+                    },
+                    {
+                        "index": 2,
+                        "value": 1.0
+                    }
+                ],
+                "location": [
+                    475.302734375,
+                    355.89654541015625
+                ],
+                "name": "Composite",
+                "type": "COMPOSITE",
+                "use_alpha": false,
+                "width": 140.0
+            },
+            {
+                "_name": "node_2",
+                "_type": "CompositorNodeImage",
+                "color": [
+                    0.6079999804496765,
+                    0.6079999804496765,
+                    0.6079999804496765
+                ],
+                "frame_duration": 60,
+                "frame_offset": 0,
+                "frame_start": 1,
+                "height": 100.0,
+                "image": {
+                    "alpha_mode": "PREMUL",
+                    "depth": 128,
+                    "filepath": "D:\\Downloads\\seaside\\env\\exr\\0001.exr",
+                    "filepath_raw": "D:\\Downloads\\seaside\\env\\exr\\0001.exr",
+                    "fps": 0,
+                    "frame_duration": 1,
+                    "frame_end": 0,
+                    "frame_start": 0,
+                    "name": "0001.exr",
+                    "source": "SEQUENCE",
+                    "use_fake_user": true
+                },
+                "inputs": [],
+                "layer": "Composite",
+                "location": [
+                    -279.71990966796875,
+                    369.2373046875
+                ],
+                "name": "Image",
+                "type": "IMAGE",
+                "use_auto_refresh": false,
+                "use_cyclic": false,
+                "width": 250.63858032226562
+            }
+        ]
+    },
+    "materials": [
+        {
+            "name": "Material",
+            "value": {
+                "links": [
+                    {
+                        "from": {
+                            "name": "node_1",
+                            "port": "BSDF"
+                        },
+                        "to": {
+                            "name": "node_0",
+                            "port": "Surface"
+                        }
+                    }
+                ],
+                "nodes": [
+                    {
+                        "_name": "node_0",
+                        "_type": "ShaderNodeOutputMaterial",
+                        "color": [
+                            0.6079999804496765,
+                            0.6079999804496765,
+                            0.6079999804496765
+                        ],
+                        "height": 100.0,
+                        "inputs": [
+                            {
+                                "index": 2,
+                                "value": 0.0
+                            }
+                        ],
+                        "location": [
+                            300.0,
+                            300.0
+                        ],
+                        "name": "Material Output",
+                        "type": "OUTPUT_MATERIAL",
+                        "width": 140.0
+                    },
+                    {
+                        "_name": "node_1",
+                        "_type": "ShaderNodeBsdfDiffuse",
+                        "color": [
+                            0.6079999804496765,
+                            0.6079999804496765,
+                            0.6079999804496765
+                        ],
+                        "height": 100.0,
+                        "inputs": [
+                            {
+                                "index": 0,
+                                "value": [
+                                    0.800000011920929,
+                                    0.800000011920929,
+                                    0.800000011920929,
+                                    1.0
+                                ]
+                            },
+                            {
+                                "index": 1,
+                                "value": 0.0
+                            },
+                            {
+                                "index": 2,
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ]
+                            }
+                        ],
+                        "location": [
+                            10.0,
+                            300.0
+                        ],
+                        "name": "Diffuse BSDF",
+                        "type": "BSDF_DIFFUSE",
+                        "width": 150.0
+                    }
+                ]
+            }
+        }
+    ]
+}

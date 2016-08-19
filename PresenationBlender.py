@@ -17,8 +17,10 @@ debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
         print(val)
-    
-validmembers = ["node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+
+image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
+composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
+validmembers = ["image","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
 RENDERSETTINGS = [
         "use_compositing",
         "use_sequencer"]
@@ -82,7 +84,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
         self.context = context
         # settings = context.scene.presentation_settings
         debugPrint(context.scene.presentation_settings)
-        
+        #
         try:
             debugPrint("start")
             materials = self.readMats(bpy.data.materials)
@@ -115,19 +117,19 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             if material.node_tree == None:
                 mat["blender_render"] = True
             # if material.node_tree != None:
-            self.readMaterialsToDictionary(material, mat, mat_value)
+            self.readObjectToDictionary(material, mat, mat_value)
             t = [f for f in materials if f["name"] == material.name]
             if len(t) == 0:
                 materials.append(mat)
         return materials
-    def readComp(self, material):
+    def readComp(self, scene):
         mat_value = {}
-        mat = { "name" : material.name, "value": mat_value }
+        mat = { "name" : scene.name, "value": mat_value }
         # materials.append(mat)
         
-        if material.node_tree == None:
+        if scene.node_tree == None:
             mat["blender_render"] = True
-        self.readMaterialsToDictionary(material, mat, mat_value)
+        self.readObjectToDictionary(scene, mat, mat_value)
         return mat_value
     def packProperties(self, obj):
         debugPrint("packing properties")
@@ -143,7 +145,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                 debugPrint(e)
         return result
         
-    def readMaterialsToDictionary(self, material, mat, mat_value):
+    def readObjectToDictionary(self, material, mat, mat_value):
         node_count = 0
         if material.node_tree == None:
             mat["blender_render"] = True
@@ -175,6 +177,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                         try:
                             try:
                                 mval = member[1]
+                                debugPrint("found " + member[0])
                                 if isinstance(mval, bpy.types.ShaderNodeTree):
                                     debugPrint(member[1].name )
                                     node[member[0]] = member[1].name
@@ -195,6 +198,12 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
                                             point_data["handle_type"] = point.handle_type
                                             curve_data["data"].append(point_data)
                                         curvemap["data"].append(curve_data)
+                                elif isinstance(mval, bpy.types.Image):
+                                    debugPrint("found an image")
+                                    image_data = { }
+                                    node[member[0]] = image_data
+                                    for imageprop in image_properties:
+                                        image_data[imageprop] = getattr(mval, imageprop)
                                 elif isinstance(mval, bpy.types.ColorRamp):
                                     color_ramp = {"data": [] }
                                     node[member[0]] = color_ramp
@@ -532,15 +541,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "Materials" in self.settings:
             debugPrint("setup materials")
             matsettings = self.settings["Materials"]
-            mat_location = matsettings["File"]
-             
-            for i in range(len(matsettings["Names"])):
-                matname = matsettings["Names"][i]
-                opath = self.fixPath(os.path.join(self.relativeDirePath,  mat_location))
-                debugPrint(opath)
-                with bpy.data.libraries.load(opath) as (data_from, data_to):
-                    data_to.materials = [name for name in data_from.materials if not self.hasMaterialByName(name)]
-                    data_to.worlds = [name for name in data_from.worlds if not self.hasWorldsByName(name)]
+            
+            if "File" in matsettings:
+                mat_location = matsettings["File"] 
+                for i in range(len(matsettings["Names"])):
+                    matname = matsettings["Names"][i]
+                    opath = self.fixPath(os.path.join(self.relativeDirePath,  mat_location))
+                    debugPrint(opath)
+                    with bpy.data.libraries.load(opath) as (data_from, data_to):
+                        data_to.materials = [name for name in data_from.materials if not self.hasMaterialByName(name)]
+                        data_to.worlds = [name for name in data_from.worlds if not self.hasWorldsByName(name)]
             
             if "Materials" in matsettings:
                 custom_materials = matsettings["Materials"]
@@ -618,62 +628,82 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         
                         node_tree_dict[node["_name"]] = newnode
                         members = inspect.getmembers(newnode)
-                        
-                        for member in members:
-                            if any(member[0] in s for s in validmembers):
-                                debugPrint("found {}".format(member[0]))
-                                if member[0] in node:
-                                    try:
-                                        if member[0] == "node_tree":
-                                            debugPrint("setting shader node tree " + node[member[0]])
-                                            #setattr(newnode, member[0], bpy.data.node_groups[node[member[0]]])
-                                            newnode.node_tree = bpy.data.node_groups[node[member[0]]]
-                                            debugPrint("set node groups")
-                                        elif isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
-                                            debugPrint(member)
-                                            debugPrint("curve mapping {} ".format(member[0]))
-                                            curvemap = getattr(newnode, member[0])
-                                            curves =  node[member[0]]["data"]
-                                            i = -1
-                                            for curve in curves:
-                                                i = i + 1
-                                                debugPrint("curves")
-                                                debugPrint(curve)
-                                                j = -1 
-                                                for point in curve["data"]:
+                        if isinstance(newnode, bpy.types.CompositorNodeImage):
+                            image_name = node["image"]["name"]
+                            _image_properties = node["image"]
+                            if self.hasImage(image_name) == False:
+                                debugPrint("does not have image " + image_name)
+                                bpy.data.images.load(filepath=_image_properties["filepath"])
+                            else:
+                                debugPrint("has image " + image_name)
+                            
+                            newnode.image = bpy.data.images[node["image"]["name"]]
+                            image_node = newnode.image
+
+                            image_data = node["image"]
+                            debugPrint("image properties")
+                            for image_prop in image_properties:
+                                setattr(image_node, image_prop, image_data[image_prop])
+
+                            debugPrint("composite image node properties")
+                            for node_prop in composite_image_node_properties:
+                                setattr(newnode, node_prop, node[node_prop])
+                        else:
+                            for member in members:
+                                if any(member[0] in s for s in validmembers):
+                                    debugPrint("found {}".format(member[0]))
+                                    if member[0] in node:
+                                        try:
+                                            if member[0] == "node_tree":
+                                                debugPrint("setting shader node tree " + node[member[0]])
+                                                #setattr(newnode, member[0], bpy.data.node_groups[node[member[0]]])
+                                                newnode.node_tree = bpy.data.node_groups[node[member[0]]]
+                                                debugPrint("set node groups")
+                                            elif isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
+                                                debugPrint(member)
+                                                debugPrint("curve mapping {} ".format(member[0]))
+                                                curvemap = getattr(newnode, member[0])
+                                                curves =  node[member[0]]["data"]
+                                                i = -1
+                                                for curve in curves:
+                                                    i = i + 1
+                                                    debugPrint("curves")
+                                                    debugPrint(curve)
+                                                    j = -1 
+                                                    for point in curve["data"]:
+                                                        j = j + 1
+                                                        debugPrint("points {}".format( len (curvemap.curves[i].points)))
+                                                        if len (curvemap.curves[i].points) <= j :
+                                                            debugPrint("adding new curve")
+                                                            res = curvemap.curves[i].points.new(point["location"][0], point["location"][1])
+                                                            res.handle_type = point["handle_type"]
+                                                            debugPrint("added new curve")
+                                                        else:
+                                                            debugPrint("update existing curve")
+                                                            curvemap.curves[i].points[j].location = point["location"]
+                                                            curvemap.curves[i].points[j].handle_type = point["handle_type"]
+                                            elif isinstance(member[1], bpy.types.ColorRamp):
+                                                color_ramp_node = getattr(newnode, member[0])
+                                                elements =  node[member[0]]["data"]
+                                                j = -1
+                                                for element in elements:
                                                     j = j + 1
-                                                    debugPrint("points {}".format( len (curvemap.curves[i].points)))
-                                                    if len (curvemap.curves[i].points) <= j :
-                                                        debugPrint("adding new curve")
-                                                        res = curvemap.curves[i].points.new(point["location"][0], point["location"][1])
-                                                        res.handle_type = point["handle_type"]
-                                                        debugPrint("added new curve")
+                                                    if len(color_ramp_node.elements) <= j:
+                                                        res = color_ramp_node.elements.new(element["position"])
+                                                        res.alpha = element["alpha"]
+                                                        res.color = element["color"]
                                                     else:
-                                                        debugPrint("update existing curve")
-                                                        curvemap.curves[i].points[j].location = point["location"]
-                                                        curvemap.curves[i].points[j].handle_type = point["handle_type"]
-                                        elif isinstance(member[1], bpy.types.ColorRamp):
-                                            color_ramp_node = getattr(newnode, member[0])
-                                            elements =  node[member[0]]["data"]
-                                            j = -1
-                                            for element in elements:
-                                                j = j + 1
-                                                if len(color_ramp_node.elements) <= j:
-                                                    res = color_ramp_node.elements.new(element["position"])
-                                                    res.alpha = element["alpha"]
-                                                    res.color = element["color"]
-                                                else:
-                                                    res = color_ramp_node.elements[j]
-                                                    res.alpha = element["alpha"]
-                                                    res.color = element["color"]
-                                                    res.position = element["position"]
-                                                # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
-                                                # color_ramp["data"].append(element_data)
-                                        else:
-                                            setattr(newnode, member[0], node[member[0]])
-                                    except Exception as e:
-                                        debugPrint(e)
-                                        debugPrint("couldnt set propertY")
+                                                        res = color_ramp_node.elements[j]
+                                                        res.alpha = element["alpha"]
+                                                        res.color = element["color"]
+                                                        res.position = element["position"]
+                                                    # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
+                                                    # color_ramp["data"].append(element_data)
+                                            else:
+                                                setattr(newnode, member[0], node[member[0]])
+                                        except Exception as e:
+                                            debugPrint(e)
+                                            debugPrint("couldnt set propertY")
                         if "inputs" in node:
                             debugPrint("input defintions in node")
                             for inputs in node["inputs"]:
@@ -799,7 +829,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         return ob_new
     def getObject(self, group):
         return self.selectObject(group.objects,"Root")
-
+    def hasImage(self, imageName):
+        for key in bpy.data.images.keys():
+            if key == imageName:
+                return True
+        return False
     def selectObject(self, array, name):
         for i in range(len(array)):
             temp = array[i]
