@@ -30,11 +30,15 @@
         "use_compositing": true,
         "use_sequencer": true,
         "FrameEnd": 100,
+        "file_format": "OPEN_EXR_MULTILAYER",
+        "color_mode": "RGBA",
+        "color_depth": "32",
+        "exr_codec": "NONE",
         "Objects": {},
         "Materials": {
             "Materials": [
                 {
-                    "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp_2.json"
+                    "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_2.json"
                 }
             ]
         }
@@ -47,7 +51,7 @@
                 "Group": "Stage"
             },
             "composite": {
-                "file": "D:\\dev\\Python\\Blender\\Presentation\\mat_comp_2.json"
+                "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_2.json"
             },
             "objects": [
                 {
@@ -113,7 +117,7 @@
                     "name": "image_2",
                     "fileName": "PT_hero_42_153645159.jpg",
                     "type": "image",
-                    "directory": "D:\\dev\\Python\\Blender\\Presentation"
+                    "directory": "D:\\dev\\Python\\Blender\\Presentation\\test_configs"
                 }
             ],
             "keyframes": [

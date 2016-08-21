@@ -6,6 +6,7 @@ import os.path
 import bpy
 import zipfile
 import sys
+import shutil, errno
 
 ver = "001"
 install_lights = True;
@@ -14,6 +15,8 @@ if sys.platform == "win32":
     blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.77" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
     blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
     blender_resources_path_target= os.path.join(basepath, "blender_resources")
+    rail_resources_path = os.path.join(basepath, "RailEnvironments")
+    rail_resources_target_path = os.path.join(basepath, "blender_rail_resources")
     uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
     uber_path_target = os.path.join(basepath, "uber")
 else:
@@ -21,6 +24,8 @@ else:
     blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", "2.77")
     blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
     blender_resources_path_target= os.path.join(basepath, "blender_resources")
+    rail_resources_path = os.path.join(basepath, "RailEnvironments")
+    rail_resources_target_path = os.path.join(basepath, "blender_rail_resources")
     uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
     uber_path_target = os.path.join(basepath, "uber")
     
@@ -33,7 +38,8 @@ hdriZip = os.path.join(basepath, "hdris.zip")
 pro_lighting_library = os.path.join(basepath, "library.zip")
 
 # location = "D:\\dev\\Python\\Blender\\Presentation\\PresenationBlender.py"
-location = os.path.join(basepath, "PresenationBlender.py")
+# location = os.path.join(basepath, "PresenationBlender.py")
+location = os.path.join(basepath, "PresentationBlender.zip")
 
 # pro_skies_location = "D:\\Blender\\Addons\\pro_lighting_skies_ultimate_v1.2.zip"
 pro_skies_location = os.path.join(basepath, "pro_lighting_skies_ultimate_v1.2.zip")
@@ -62,8 +68,19 @@ def unzipToLocation(file, to):
         z.extract(name, outpath)
     fh.close()
 
+
+def copyanything(src, dst):
+    try:
+        shutil.copytree(src, dst)
+    except OSError as exc: # python >2.5
+        if exc.errno == errno.ENOTDIR:
+            shutil.copy(src, dst)
+        else: raise
+
 unzipToLocation(uber_path_file, uber_path_target)
 unzipToLocation(blender_resources_path, blender_resources_path_target)
+copyanything(rail_resources_path, rail_resources_target_path)
+
 if install_lights:
     unzipToLocation(hdriZip, pro_skies_hdri_location)
     unzipToLocation(pro_lighting_library, pro_lighting_studio_location_libs)
@@ -81,8 +98,8 @@ if install_lights:
 #     z.extract(name, outpath)
 # fh.close()
 
-print("enabling PresenationBlender")
-bpy.ops.wm.addon_enable(module="PresenationBlender")   
+print("enabling PresentationBlender")
+bpy.ops.wm.addon_enable(module="PresentationBlender")   
 print("enabling pro_lighting_skies_ultimate")
 bpy.ops.wm.addon_enable(module="pro_lighting_skies_ultimate")     
 print("enabling pro_lighting_studio")
