@@ -136,11 +136,16 @@ class CompositeWriter():
             for _link in material.node_tree.links:
                 from_ = self.selectNodeName(_link.from_node, nodes_ref)
                 to_ = self.selectNodeName(_link.to_node, nodes_ref)
-                links.append( { "from": {"port": _link.from_socket.name , "name": from_ }, "to": {"port": _link.to_socket.name , "name": to_ } })
+                links.append( { "from": {"port": _link.from_socket.name ,"bl_idname" : _link.from_socket.bl_idname, "name": from_ }, "to": {"port": _link.to_socket.name,"bl_idname" : _link.to_socket.bl_idname, "name": to_ } })
                     
 
 
-
+    def getIndexOf(self, socket, inputs):
+        c = -1
+        for puts in inputs:
+            if puts == socket:
+                return c+1;
+        return -1
     def selectNodeName(self, target, refs):
         for ndata in refs:
             if ndata["node"] == target:
@@ -162,7 +167,7 @@ class CompositeWriter():
         return result
         
         
-    def defineMaterial(self,  custom_mat):
+    def defineMaterial(self,  custom_mat, presentation_material_animation_points):
         if "name" in custom_mat:
             mat_name = custom_mat["name"]
             if self.doesMaterialExistAlready(mat_name):
@@ -178,7 +183,7 @@ class CompositeWriter():
                 # clear all nodes to start clean
                 for node in mat.node_tree.nodes:
                     mat.node_tree.nodes.remove(node)
-                self.defineNodeTree(mat.node_tree, custom_mat) 
+                self.defineNodeTree(mat.node_tree, custom_mat, presentation_material_animation_points) 
 
     def doesMaterialExistAlready(self, name):
         for item in bpy.data.materials:

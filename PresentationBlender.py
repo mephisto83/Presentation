@@ -31,6 +31,7 @@ def debugPrint(val=None):
 RENDERSETTINGS = [
         "use_compositing",
         "use_sequencer"]
+IMAGE_SETTINGS = ["file_format", "film_transparent"]
 CYCLESRENDERSETTINGS = ["use_animated_seed",
         "sample_clamp_direct",
         "sample_clamp_indirect",
@@ -351,6 +352,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         for _setting in RENDERSETTINGS:
             if _setting in self.settings and hasattr(bpy.context.scene.render, _setting):
                 setattr(bpy.context.scene.render, _setting, self.settings[_setting])
+        for _setting in IMAGE_SETTINGS:
+            if _setting in self.settings and hasattr(bpy.context.scene.render.image_settings, _setting):
+                setattr(bpy.context.scene.render.image_settings, _setting, self.settings[_setting])
         for _setting in CYCLESRENDERSETTINGS:
             if _setting in self.settings and hasattr(bpy.context.scene.cycles, _setting):
                 setattr(bpy.context.scene.cycles, _setting, self.settings[_setting])
@@ -400,7 +404,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 for custom_mat in custom_materials:
                     debugPrint("create material")
                     if "name" in custom_mat:
-                        compositeWriter.defineMaterial(material)
+                        compositeWriter.defineMaterial(custom_mat, self.presentation_material_animation_points)
                         # self.defineMaterial(custom_mat)
                     elif "file" in custom_mat:
                         f = open(custom_mat["file"], 'r')
@@ -408,7 +412,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         composite_settings = json.loads(filecontents)
                         if "materials" in composite_settings:
                             for material in composite_settings["materials"]:
-                                compositeWriter.defineMaterial(material)
+                                compositeWriter.defineMaterial(material, self.presentation_material_animation_points)
                                 # self.defineMaterial(material)
                             
 
