@@ -7,6 +7,11 @@ import zipfile
 import sys
 import shutil, errno
 
+def writeZip(files, to):
+    with zipfile.ZipFile(to, 'x') as myzip:
+        for file in files:
+            myzip.write(file)
+
 ver = "001"
 install_lights = True;
 if sys.platform == "win32":
@@ -17,11 +22,15 @@ else:
     blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", "2.77")
     
 print("Install presentation addons")
-
-
 # location = "D:\\dev\\Python\\Blender\\Presentation\\PresenationBlender.py"
 # location = os.path.join(basepath, "PresenationBlender.py")
 location = os.path.join(basepath, "PresentationBlender.zip")
+
+
+if os.path.isfile(location):
+    os.remove(location)
+
+writeZip(["PresentationBlender.py", "CompositeWriter.py"], location)
 
 # bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
