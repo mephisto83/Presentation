@@ -1269,7 +1269,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             obj["object"].location.z = float(pos["z"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=2)
-
+        if "handle_type" in pos:
+                if keyframe:
+                    self.setHandleType(obj, "location", pos["handle_type"])
+                    
     def scale(self, obj, scale, keyframe, frame):
             if scale == None:
                 return
@@ -1288,6 +1291,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 obj["object"].scale.z = (scale["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=2)
+            if "handle_type" in scale:
+                if keyframe:
+                    self.setHandleType(obj, "scale", scale["handle_type"])
+    
+    def setHandleType(self, obj, data_path, handle_type):
+        for curve in obj["object"].animation_data.action.fcurves:
+            if curve.data_path == data_path:
+                i = len(curve.keyframe_points) - 1
+                if i > -1:
+                    curve.keyframe_points[i].interpolation = handle_type
 
     def rotation(self, obj, rotation, keyframe, frame):
             debugPrint("rotation")
@@ -1308,7 +1321,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 obj["object"].rotation_euler.z = math.radians(rotation["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=2)
-                           
+            if "handle_type" in rotation:
+                    if keyframe:
+                        self.setHandleType(obj, "rotation_euler", rotation["handle_type"])    
+                                    
     def getObjectByName(self, name):
         for i in range(len(self.presentation_objects)):
             obj = self.presentation_objects[i]

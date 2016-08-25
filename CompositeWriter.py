@@ -136,15 +136,19 @@ class CompositeWriter():
             for _link in material.node_tree.links:
                 from_ = self.selectNodeName(_link.from_node, nodes_ref)
                 to_ = self.selectNodeName(_link.to_node, nodes_ref)
-                links.append( { "from": {"port": _link.from_socket.name ,"bl_idname" : _link.from_socket.bl_idname, "name": from_ }, "to": {"port": _link.to_socket.name,"bl_idname" : _link.to_socket.bl_idname, "name": to_ } })
+                to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
+                from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
+
+                links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name ,"bl_idname" : _link.from_socket.bl_idname, "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name,"bl_idname" : _link.to_socket.bl_idname, "name": to_ } })
                     
 
 
     def getIndexOf(self, socket, inputs):
-        c = -1
-        for puts in inputs:
-            if puts == socket:
-                return c+1;
+        c = 0
+        for puts in inputs.items():
+            if puts[1] == socket:
+                return c
+            c = c + 1
         return -1
     def selectNodeName(self, target, refs):
         for ndata in refs:
@@ -217,21 +221,46 @@ class CompositeWriter():
                 f = open(composite_settings["file"], 'r')
                 filecontents = f.read()
                 composite_settings = json.loads(filecontents)
-            custom_mat = { "name":"composite", "value": composite_settings["composite"] }
-            # switch on nodes and get reference
-            context.scene.use_nodes = True
-            tree = bpy.context.scene.node_tree
+            else:
+                debugPrint("not using file")
+            if "composite" in composite_settings: 
+                custom_mat = { "name":"composite", "value": composite_settings["composite"] }
+                # switch on nodes and get reference
+                debugPrint("switch on nodes and get reference")
+                context.scene.use_nodes = True
+                tree = bpy.context.scene.node_tree
 
-            # clear default nodes
-            for node in tree.nodes:
-                tree.nodes.remove(node)
-            self.defineNodeTree(tree, custom_mat, presentation_material_animation_points)
+                debugPrint("clear default nodes")
+                # clear default nodes
+                for node in tree.nodes:
+                    tree.nodes.remove(node)
+                self.defineNodeTree(tree, custom_mat, presentation_material_animation_points)
 
     def hasImage(self, imageName):
         for key in bpy.data.images.keys():
             if key == imageName:
                 return True
         return False
+    def defineImage(self, node_image):
+        image_name = node_image["name"]
+        _image_properties = node_image
+        if self.hasImage(image_name) == False:
+            debugPrint("does not have image " + image_name)
+            bpy.data.images.load(filepath=_image_properties["filepath"])
+        else:
+            debugPrint("has image " + image_name)
+        
+        newnode.image = bpy.data.images[node_image["name"]]
+        image_node = newnode.image
+
+        image_data = node_image
+        debugPrint("image properties")
+        for image_prop in image_properties:
+            setattr(image_node, image_prop, image_data[image_prop])
+
+        debugPrint("composite image node properties")
+        for node_prop in composite_image_node_properties:
+            setattr(newnode, node_prop, node[node_prop])
 
     def defineNodeTree(self, node_tree, custom_mat, presentation_material_animation_points):
         debugPrint("create material")
@@ -254,25 +283,26 @@ class CompositeWriter():
                         node_tree_dict[node["_name"]] = newnode
                         members = inspect.getmembers(newnode)
                         if isinstance(newnode, bpy.types.CompositorNodeImage):
-                            image_name = node["image"]["name"]
-                            _image_properties = node["image"]
-                            if self.hasImage(image_name) == False:
-                                debugPrint("does not have image " + image_name)
-                                bpy.data.images.load(filepath=_image_properties["filepath"])
-                            else:
-                                debugPrint("has image " + image_name)
+                            # image_name = node["image"]["name"]
+                            self.defineImage(node["image"])
+                            # _image_properties = node["image"]
+                            # if self.hasImage(image_name) == False:
+                            #     debugPrint("does not have image " + image_name)
+                            #     bpy.data.images.load(filepath=_image_properties["filepath"])
+                            # else:
+                            #     debugPrint("has image " + image_name)
                             
-                            newnode.image = bpy.data.images[node["image"]["name"]]
-                            image_node = newnode.image
+                            # newnode.image = bpy.data.images[node["image"]["name"]]
+                            # image_node = newnode.image
 
-                            image_data = node["image"]
-                            debugPrint("image properties")
-                            for image_prop in image_properties:
-                                setattr(image_node, image_prop, image_data[image_prop])
+                            # image_data = node["image"]
+                            # debugPrint("image properties")
+                            # for image_prop in image_properties:
+                            #     setattr(image_node, image_prop, image_data[image_prop])
 
-                            debugPrint("composite image node properties")
-                            for node_prop in composite_image_node_properties:
-                                setattr(newnode, node_prop, node[node_prop])
+                            # debugPrint("composite image node properties")
+                            # for node_prop in composite_image_node_properties:
+                            #     setattr(newnode, node_prop, node[node_prop])
                         else:
                             for member in members:
                                 if any(member[0] in s for s in validmembers):
@@ -324,6 +354,17 @@ class CompositeWriter():
                                                         res.position = element["position"]
                                                     # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
                                                     # color_ramp["data"].append(element_data)
+                                            elif member[0] == "image":
+                                                # "image": {
+                                                #     "alpha_mode": "STRAIGHT",
+                                                #     "filepath": "D:\\Render\\Presenatation\\Test\\3\\Bricks01_SPEC.jpg",
+                                                #     "filepath_raw": "D:\\Render\\Presenatation\\Test\\3\\Bricks01_SPEC.jpg",
+                                                #     "name": "Bricks01_SPEC.jpg",
+                                                #     "source": "FILE",
+                                                #     "use_fake_user": false
+                                                # }
+                                                image_data = newnode[member[0]]
+                                                self.defineImage(image_data)
                                             else:
                                                 setattr(newnode, member[0], node[member[0]])
                                         except Exception as e:
@@ -333,7 +374,11 @@ class CompositeWriter():
                             debugPrint("input defintions in node")
                             for inputs in node["inputs"]:
                                 debugPrint("setting node's input")
-                                newnode.inputs[inputs["index"]].default_value = inputs["value"]
+                                debugPrint("{}".format(inputs["value"]))
+                                try:
+                                    newnode.inputs[inputs["index"]].default_value = inputs["value"]
+                                except Exception as e:
+                                            debugPrint(e)
                         if "_animation" in node:
                             _animationPoints = node["_animation"]
                             for _animationPoint in _animationPoints:
@@ -353,14 +398,29 @@ class CompositeWriter():
                         debugPrint("link defintions ")
                         from_node = link["from"]["name"]
                         from_port = link["from"]["port"]
+                        from_index = None
+                        if "index" in link["from"]:
+                            from_index = link["from"]["index"]
                         to_node = link["to"]["name"]
                         to_port = link["to"]["port"]
+                        to_index = None
+                        if "index" in link["to"]:
+                            to_index = link["to"]["index"]
                         debugPrint("from_node : {}".format(from_node))
                         debugPrint("from_port : {}".format(from_port))
                         debugPrint("to_node : {}".format(to_node))
                         debugPrint("to_port : {}".format(to_port))
-                        output = node_tree_dict[from_node].outputs[from_port]
-                        input = node_tree_dict[to_node].inputs[to_port]
+
+                        if to_index == None:
+                            output = node_tree_dict[from_node].outputs[from_port]
+                        else:
+                            output = node_tree_dict[from_node].outputs[from_index]
+
+                        if from_index == None:
+                            input = node_tree_dict[to_node].inputs[to_port]
+                        else:
+                            input = node_tree_dict[to_node].inputs[to_index]
+
                         links.new(output, input)
                         print
                         
