@@ -12,6 +12,7 @@ bl_info = {
 #     print("Reloaded multifiles")
 # else:
 from CompositeWriter import CompositeWriter
+from BlenderToJson import BlenderToJson
 print("Imported multifiles")
 
 import math
@@ -22,43 +23,13 @@ import json
 import bpy.types
 import inspect
 from types import *
-
+from Constants import RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
         print(val)
 
-RENDERSETTINGS = [
-        "use_compositing",
-        "use_sequencer"]
-IMAGE_SETTINGS = ["file_format", "film_transparent"]
-CYCLESRENDERSETTINGS = ["use_animated_seed",
-        "sample_clamp_direct",
-        "sample_clamp_indirect",
-        "aa_samples",
-        "progressive",
-        "diffuse_samples",
-        "glossy_samples",
-        "transmission_samples",
-        "ao_samples",
-        "mesh_light_samples",
-        "subsurface_samples",
-        "volume_samples",
-        "sampling_pattern",
-        "transparent_max_bounces",
-        "transparent_min_bounces",
-        "use_transparent_shadows",
-        "caustics_reflective",
-        "caustics_refractive",
-        "blur_glossy",
-        "max_bounces",
-        "film_transparent",
-        "min_bounces" ,
-        "diffuse_bounces",
-        "glossy_bounces",
-        "transmission_bounces",
-        "volume_bounces"]
-               
+
 class Error(Exception):
     """Base class for exceptions in this module."""
     pass
@@ -76,7 +47,29 @@ class PresentationBlenderGUI(bpy.types.Panel):
         TheCol.prop(context.scene, "presentation_settings")
         TheCol.operator("object.presentation_blender_maker", text="Update")
         TheCol.operator("object.presentation_blender_mat_comp_reader", text="Read Mat/Comp")
+        TheCol.operator("object.presentation_blender_from_scene", text="Read Scene")
 
+class PresentationBlenderFromScene(bpy.types.Operator):
+    """Presentation Blender From Scene """
+    bl_idname = "object.presentation_blender_from_scene"
+    bl_label = "Presentation Blender from scenes"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        self.context = context
+        cursor = scene.cursor_location
+        debugPrint("Read blender from scene")
+        try:
+            debugPrint("start")
+            blenderToJson = BlenderToJson()
+            res = blenderToJson.readScene(self.context.scene)
+            text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
+        except Exception as e:
+            debugPrint("didnt work out")
+            debugPrint(e)
+        return {'FINISHED'}
 
 class PresentationBlenderMatCompReader(bpy.types.Operator):
     """Presentation Blender Material Composition"""
@@ -181,7 +174,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.processKeyFrames(scene)
             self.processArmatureFrames(scene)
             self.processMaterialKeyFrames(scene)
-        compositeWriter = CompositeWriter();
+        compositeWriter = CompositeWriter()
         for scene in self.scenes:
             self.switchToScene(scene["name"])
             compositeWriter.setupComposite(scene, self.context, self.presentation_material_animation_points)
@@ -210,7 +203,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     skies_config = proskies_config["skies"]
                     if "use_pl_skies" in skies_config and skies_config["use_pl_skies"]:
                         debugPrint("Using pl_skies")
-                        setattr(bpy.context.scene.world.pl_skies_settings, 'use_pl_skies', True);
+                        setattr(bpy.context.scene.world.pl_skies_settings, 'use_pl_skies', True)
                         if "evn_previews" in skies_config:
                             try:
                                 setattr(bpy.context.scene.world, "env_previews", skies_config["evn_previews"])
@@ -330,7 +323,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         else:
             bpy.context.scene.render.resolution_y = 720
         if "filepath" in self.settings and self.settings["filepath"]:
-            bpy.context.scene.render.filepath = os.path.relpath(self.settings["filepath"]);
+            bpy.context.scene.render.filepath = os.path.relpath(self.settings["filepath"])
             
         bpy.context.scene.render.tile_y = 64
         bpy.context.scene.render.tile_x = 64
@@ -378,7 +371,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "Files" in objectssettings:
                 for i in range(len(objectssettings["Files"])):
                     objlocation = self.fixPath(os.path.join(self.relativeDirePath, objectssettings["Files"][i]))
-                    debugPrint(objlocation);
+                    debugPrint(objlocation)
                     with bpy.data.libraries.load(objlocation) as (data_from, data_to):
                         data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
                         
@@ -482,16 +475,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if copyobj.data != None:
             ob_new.data = copyobj.data.copy() 
         # ob_new.scale = copyobj.scale.copy()
-        debugPrint(root_parent.matrix_world.translation);
+        debugPrint(root_parent.matrix_world.translation)
         # ob_new.rotation_euler = copyobj.rotation_euler.copy()
         # ob_new.location = copyobj.location.copy() - root_parent.location.copy()
-        ob_new.matrix_world = copyobj.matrix_world.copy();
+        ob_new.matrix_world = copyobj.matrix_world.copy()
  
         # Link new object to the given scene and select it
         debugPrint("link new object to the given scene and select it")
         scene.objects.link(ob_new)
         ob_new.select = True
-        self.context.scene.update();
+        self.context.scene.update()
         if len(copyobj.children) > 0:
             for i in range(len(copyobj.children)):
                 obj_ject = self.duplicateObject(scene, copyobj.children[i].name , copyobj.children[i], copyobj)
@@ -557,9 +550,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         debugPrint("process armatures")
         #self.presentation_armatures.append({"bone_chains":bone_chains,"armature"
         #: armature, "rig":rig})
-        debugPrint("setting object mode");
+        debugPrint("setting object mode")
         # bpy.ops.object.mode_set(mode='OBJECT')
-        debugPrint("set object mode");
+        debugPrint("set object mode")
         if len(self.presentation_armatures) > 0 :
             bpy.ops.object.mode_set(mode='POSE')
             debugPrint(len(self.presentation_armatures))
@@ -624,10 +617,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     if a_parent == 0:
                         raise ValueError("Cant find the armatures parent " + armatureConfig["parent"])
                     else :
-                         rig.parent = a_parent["object"];
+                         rig.parent = a_parent["object"]
                     
                 rig.show_x_ray = True
-                self.presentation_objects.append({"scene": self.scene,  "name" : armatureConfig["name"], "type" : "rig",  "rig" : rig, "mesh": rig.data, "object": rig });
+                self.presentation_objects.append({"scene": self.scene,  "name" : armatureConfig["name"], "type" : "rig",  "rig" : rig, "mesh": rig.data, "object": rig })
                 armature.draw_type = "STICK"
                 armature.show_names = True
                 scn = self.context.scene
@@ -647,7 +640,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 if "chain_positions" in armatureConfig:
                     chain_positions = armatureConfig["chain_positions"] 
                 last_bone = False
-                info_chains = [];
+                info_chains = []
                 for j  in range(len(chains)):
                     chain = chains[j]
                     bone_chain = armature.edit_bones.new("bone.chain." + chain)
@@ -665,28 +658,28 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         bone_chain.use_connect = True
                     last_bone = bone_chain
                 if "ik_bones" in armatureConfig:
-                    debugPrint("has ik_bones");
+                    debugPrint("has ik_bones")
                     ik_bones = armatureConfig["ik_bones"]
                     debugPrint(len(ik_bones))
                     for y in range(len(ik_bones)):
                         ik_bone = ik_bones[y]
-                        bone = self.getBoneChain(info_chains, ik_bone["connectTo"]);
+                        bone = self.getBoneChain(info_chains, ik_bone["connectTo"])
                         the_bone = bone["chain"]
                         new_ik_bone = armature.edit_bones.new(ik_bone["id"])
                         if "head" in ik_bone:
                             new_ik_bone.head = mathutils.Vector(((ik_bone["head"]["x"], ik_bone["head"]["y"], ik_bone["head"]["z"])))
                         else:
-                            new_ik_bone.head = the_bone.tail;
+                            new_ik_bone.head = the_bone.tail
                             
                         if "tail" in ik_bone:
                             new_ik_bone.tail = mathutils.Vector(((ik_bone["tail"]["x"], ik_bone["tail"]["y"], ik_bone["tail"]["z"])))
                         else:
-                            new_ik_bone.tail = the_bone.tail + mathutils.Vector((0,0,0.6));
+                            new_ik_bone.tail = the_bone.tail + mathutils.Vector((0,0,0.6))
                         bpy.ops.object.mode_set(mode='OBJECT')
                         bpy.ops.object.select_all(action='DESELECT') 
                         bpy.ops.object.mode_set(mode='POSE')       
                         the_bone.select = True
-                        the_bone = rig.pose.bones["bone.chain." + ik_bone["connectTo"]].bone;
+                        the_bone = rig.pose.bones["bone.chain." + ik_bone["connectTo"]].bone
                         armature.bones.active = the_bone
                         bpy.ops.pose.constraint_add(type='IK')
                         self.context.selected_pose_bones[0].constraints["IK"].target = rig
@@ -775,7 +768,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         objects = keyframe["objects"]
         
         for i in range(len(objects)):
-            debugPrint("getting " + objects[i]["name"]);
+            debugPrint("getting " + objects[i]["name"])
             obj = self.getBoneByName(objects[i]["name"])
             
             if obj == 0:
@@ -788,7 +781,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 else:
                     self.setObjectProperty(obj, objects[i], keyframe["frame"])
             else:
-                debugPrint("found : " + objects[i]["name"]);
+                debugPrint("found : " + objects[i]["name"])
                 bpy.ops.object.mode_set(mode='OBJECT')
                 debugPrint("set mode to object")
                 bpy.ops.object.select_all(action='DESELECT')
@@ -796,9 +789,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 rig = obj["rig"]
                 debugPrint("got rig")
                 armature = obj["armature"]
-                rig.select = True;
+                rig.select = True
                 bpy.ops.object.mode_set(mode='POSE')       
-                the_bone = rig.pose.bones[obj["name"]].bone;
+                the_bone = rig.pose.bones[obj["name"]].bone
                 armature.bones.active = the_bone
                 self.setArmatureObjectProperties({"object": rig.pose.bones[obj["name"]]}, objects[i], keyframe["frame"])
                 debugPrint("set armature properties")
@@ -865,10 +858,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "rotation" in config and config["rotation"]:
             rotation = config["rotation"]
             debugPrint("setting armture object rotation")
-            self.rotation(obj, rotation , True, frame);
+            self.rotation(obj, rotation , True, frame)
         
     def setObjectProperty(self, obj, config, frame):
-        debugPrint(obj);
+        debugPrint(obj)
         debugPrint("obj type : " + obj["type"])
         debugPrint(type(obj["object"]))
         if "position" in config:
@@ -1301,6 +1294,52 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 i = len(curve.keyframe_points) - 1
                 if i > -1:
                     curve.keyframe_points[i].interpolation = handle_type
+    def getCurrentKeyframeIds(self, object, data_path, prop):
+        if object.animation_data != None:
+            fcurves = object.animation_data.action.fcurves
+            indexOfPath = self.getFirstOf(data_path, fcurves)
+            if indexOfPath == -1:
+                return []
+            fcurveIndex = indexOfPath + CONVERT_INDEX[prop]
+            return [f.co[0] for f in fcurves[fcurveIndex].keyframe_points]
+
+    def getFirstOf(self, dp, curves):
+        debugPrint("get first of {}".format(dp))
+        for c in curves:
+            debugPrint("c : {}".format(c))
+            if c.data_path == dp:
+                return c.array_index
+        return -1
+    def getFcurveIndex(self, object, data_path, prop):
+        if object.animation_data != None:
+            fcurves = object.animation_data.action.fcurves
+            indexOfPath = self.getFirstOf(data_path, fcurves)
+            if indexOfPath == -1:
+                return []
+            fcurveIndex = indexOfPath + CONVERT_INDEX[prop]
+            return fcurveIndex
+        raise ValueError("no fcurveIndex")
+    
+    def getKeyFramePoint(self, object, data_path, prop, frame):
+        fcurveIndex = self.getFcurveIndex(object, data_path, prop)
+        for f in object.animation_data.action.fcurves[fcurveIndex].keyframe_points:
+            if f.co[0] == frame:
+                return f
+        raise ValueError("cannot find get keyframe_point")
+
+    def setKeyFrameProperties(self, obj, config, data_path, property, frame):
+        fcurveIndex = self.getFcurveIndex(obj, data_path, property)
+        fcurve = obj.animation_data.action.fcurves[fcurveIndex]
+        p_keyframe_point = property + "_keyframe_point"
+        if p_keyframe_point in config:
+            keyframe_config = config[p_keyframe_point]
+            keyframepoint = self.getKeyFramePoint(obj, data_path, property, frame)
+            for key in keyframe_config.keys():
+                try:
+                    debugPrint("setting key {} : {}".format(key, keyframe_config[key]))
+                    setattr(keyframepoint, key, keyframe_config[key])
+                except e:
+                    debugPrint("couldnt set property : {}".format(e))
 
     def rotation(self, obj, rotation, keyframe, frame):
             debugPrint("rotation")
@@ -1310,20 +1349,24 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint(rotation["x"])
                 obj["object"].rotation_euler.x = math.radians(rotation["x"])
                 if keyframe:
+                    # currentKeyFrames = self.getCurrentKeyframeIds(obj["object"], "rotation_euler", "x")
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=0)
-                
+                    self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "x",  frame)
             if "y" in rotation:
                 obj["object"].rotation_euler.y = math.radians(rotation["y"])
                 if keyframe:
+                    # currentKeyFrames = self.getCurrentKeyframeIds(obj["object"], "rotation_euler", "y")
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=1)
+                    self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "y",  frame)
                 
             if "z" in rotation:
                 obj["object"].rotation_euler.z = math.radians(rotation["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=2)
-            if "handle_type" in rotation:
-                    if keyframe:
-                        self.setHandleType(obj, "rotation_euler", rotation["handle_type"])    
+                    self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "z", frame)
+            # if "handle_type" in rotation:
+            #         if keyframe:
+            #             self.setHandleType(obj, "rotation_euler", rotation["handle_type"])    
                                     
     def getObjectByName(self, name):
         for i in range(len(self.presentation_objects)):
@@ -1351,7 +1394,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if name.find("#") == -1:
             obj_name = name.split("#")[0]
             if root.name == obj_name:
-                v = "#";
+                v = "#"
                 v.join(name.split("#")[1:])
                 return self.searchForObject(v, root)
             
@@ -1423,9 +1466,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         keyframes = scene["keyframes"]
         for k in range(len(keyframes)):
             debugPrint("keyframe s" )
-            debugPrint(len(keyframes));
+            debugPrint(len(keyframes))
             keyframe = keyframes[k]
-            debugPrint("keyframe #" );
+            debugPrint("keyframe #" )
             keyframe_objects = keyframe["objects"]
             debugPrint("for each keyframe_obect")
             for j in range(len(keyframe_objects)):
@@ -1474,7 +1517,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     result["object"] = res
                     result["mesh"] = res.data
         elif scene_object_config["type"] == "path":
-            pathobject = self.path(scene_object_config);
+            pathobject = self.path(scene_object_config)
             result["object"] = pathobject["object"]
             result["mesh"] = pathobject["mesh"]                
         elif scene_object_config["type"] == "circle":
@@ -1592,7 +1635,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         prev_low_size = 0
         prev_high_size = 10
         newsize = 5
-        down = False;
+        down = False
         lastdirection = -1
         for i in range(1, 5):
             obj.data.size = newsize
@@ -1649,15 +1692,15 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "hooks" in config:
             for k in range(len(config["hooks"])):
                 debugPrint("add hook")
-                hookConfig = config["hooks"][k];
-                debugPrint("hookConfig");
+                hookConfig = config["hooks"][k]
+                debugPrint("hookConfig")
                 #create modifiers & set Parent Object
                 hookname = hookConfig["hook"]+"_"+str(hookConfig["index"])+"_"+config["name"]
-                debugPrint("hook name : " + hookname);
+                debugPrint("hook name : " + hookname)
                 objectdata.modifiers.new(hookname, type='HOOK')
                 debugPrint("added modifier")
-                hookObj = bpy.data.objects[hookConfig["hook"]]; #self.getObjectByName(hookConfig["hook"]); 
-                debugPrint(hookObj);
+                hookObj = bpy.data.objects[hookConfig["hook"]] #self.getObjectByName(hookConfig["hook"]) 
+                debugPrint(hookObj)
                 objectdata.modifiers[hookname].object = hookObj
                 debugPrint("modifier object set")
 
@@ -1733,28 +1776,28 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 polyline.points[num].co = (x, y, z, w)
         if "hooks" in config:
             for k in range(len(config["hooks"])):
-                debugPrint("hooking up hooks");
+                debugPrint("hooking up hooks")
                 hookConfig = config["hooks"][k]
                 hookname = hookConfig["hook"]+"_"+str(hookConfig["index"])+"_"+config["name"]
                 index =  int(hookConfig["index"])
-                point = polyline.points[index];
-                debugPrint("point ");
-                debugPrint(point);
-                self.deselectAll();
+                point = polyline.points[index]
+                debugPrint("point ")
+                debugPrint(point)
+                self.deselectAll()
                 hookObj = bpy.data.objects[hookConfig["hook"]]
-                hookObj.select= True;
-                objectdata.select = True;
+                hookObj.select= True
+                objectdata.select = True
                 bpy.context.scene.objects.active = objectdata
-                debugPrint("object data selected ");
-                point.select = True;
-                objectdata.select = True;
-                bpy.ops.object.mode_set(mode='EDIT'); 
+                debugPrint("object data selected ")
+                point.select = True
+                objectdata.select = True
+                bpy.ops.object.mode_set(mode='EDIT') 
                                 #select point
-                debugPrint("assigning");
-                bpy.ops.object.hook_assign(modifier=hookname);
-                point.select = False;
-                bpy.ops.object.mode_set(mode='OBJECT'); 
-                debugPrint("assigning");
+                debugPrint("assigning")
+                bpy.ops.object.hook_assign(modifier=hookname)
+                point.select = False
+                bpy.ops.object.mode_set(mode='OBJECT') 
+                debugPrint("assigning")
                 
         return { "object": objectdata, "mesh": curvedata}
 
@@ -1831,6 +1874,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 def menu_func(self, context):
     self.layout.operator(PresentationBlenderAnimation.bl_idname)
     self.layout.operator(PresentationBlenderMatCompReader.bl_idname)
+    self.layout.operator(PresentationBlenderFromScene.bl_idname)
 
 # store keymaps here to access after registration
 # addon_keymaps = []
@@ -1838,6 +1882,7 @@ def register():
     bpy.utils.register_class(PresentationBlenderAnimation)
     bpy.utils.register_class(PresentationBlenderMatCompReader)
     bpy.utils.register_class(PresentationBlenderGUI)
+    bpy.utils.register_class(PresentationBlenderFromScene)
     bpy.types.Scene.presentation_settings = bpy.props.StringProperty \
       (name = "Movie settings",
         subtype = "FILE_PATH",
@@ -1857,6 +1902,7 @@ def unregister():
     del bpy.types.Scene.presentation_settings
     bpy.utils.unregister_class(PresentationBlenderMatCompReader)
     bpy.utils.unregister_class(PresentationBlenderGUI)
+    bpy.utils.unregister_class(PresentationBlenderFromScene)
     bpy.types.VIEW3D_MT_object.remove(menu_func)
 
     # handle the keymap

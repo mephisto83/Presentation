@@ -30,7 +30,7 @@ location = os.path.join(basepath, "PresentationBlender.zip")
 if os.path.isfile(location):
     os.remove(location)
 
-writeZip(["PresentationBlender.py", "CompositeWriter.py"], location)
+writeZip(["PresentationBlender.py", "CompositeWriter.py", "BlenderToJson.py", "Constants.py", "Util.py"], location)
 
 # bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath="", filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")
 bpy.ops.wm.addon_install(overwrite=True, target='DEFAULT', filepath=location, filter_folder=True, filter_python=True, filter_glob="*.py;*.zip")

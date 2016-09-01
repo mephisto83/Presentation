@@ -9,7 +9,7 @@ from types import *
 
 image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
 composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
-validmembers = ["image","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "layer","zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+validmembers = ["image", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
 
 debugmode = True
 def debugPrint(val=None):
@@ -139,7 +139,7 @@ class CompositeWriter():
                 to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
                 from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
 
-                links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name ,"bl_idname" : _link.from_socket.bl_idname, "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name,"bl_idname" : _link.to_socket.bl_idname, "name": to_ } })
+                links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name , "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name, "name": to_ } })
                     
 
 
@@ -241,7 +241,7 @@ class CompositeWriter():
             if key == imageName:
                 return True
         return False
-    def defineImage(self, node_image):
+    def defineImage(self, node_image, newnode, node):
         image_name = node_image["name"]
         _image_properties = node_image
         if self.hasImage(image_name) == False:
@@ -252,10 +252,12 @@ class CompositeWriter():
         
         newnode.image = bpy.data.images[node_image["name"]]
         image_node = newnode.image
-
+        if "layer" in node:
+            setattr(newnode, "layer", node["layer"])
         image_data = node_image
         debugPrint("image properties")
         for image_prop in image_properties:
+            debugPrint(" setting {} to {}".format(image_prop, image_data[image_prop]))
             setattr(image_node, image_prop, image_data[image_prop])
 
         debugPrint("composite image node properties")
@@ -284,7 +286,7 @@ class CompositeWriter():
                         members = inspect.getmembers(newnode)
                         if isinstance(newnode, bpy.types.CompositorNodeImage):
                             # image_name = node["image"]["name"]
-                            self.defineImage(node["image"])
+                            self.defineImage(node["image"], newnode, node)
                             # _image_properties = node["image"]
                             # if self.hasImage(image_name) == False:
                             #     debugPrint("does not have image " + image_name)
@@ -364,7 +366,7 @@ class CompositeWriter():
                                                 #     "use_fake_user": false
                                                 # }
                                                 image_data = newnode[member[0]]
-                                                self.defineImage(image_data)
+                                                self.defineImage(image_data, newnode, node)
                                             else:
                                                 setattr(newnode, member[0], node[member[0]])
                                         except Exception as e:
@@ -429,6 +431,7 @@ class CompositeWriter():
                 raise ValueError("no material definition found")
         else:
             raise ValueError("no material name found")
+
 
 if __name__ == "__main__":
     ob = CompositeWriter()
