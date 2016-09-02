@@ -1,0 +1,237 @@
+{
+    "composite": {
+        "links": [
+            {
+                "from": {
+                    "index": 0,
+                    "name": "node_1",
+                    "port": "Image"
+                },
+                "to": {
+                    "index": 0,
+                    "name": "node_0",
+                    "port": "Image"
+                }
+            }
+        ],
+        "nodes": [
+            {
+                "_name": "node_0",
+                "_type": "CompositorNodeComposite",
+                "color": [
+                    0.6079999804496765,
+                    0.6079999804496765,
+                    0.6079999804496765
+                ],
+                "height": 100.0,
+                "inputs": [
+                    {
+                        "index": 0,
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0,
+                            1.0
+                        ]
+                    },
+                    {
+                        "index": 1,
+                        "value": 1.0
+                    },
+                    {
+                        "index": 2,
+                        "value": 1.0
+                    }
+                ],
+                "location": [
+                    300.0,
+                    400.0
+                ],
+                "name": "Composite",
+                "type": "COMPOSITE",
+                "use_alpha": true,
+                "width": 140.0
+            },
+            {
+                "_name": "node_1",
+                "_type": "CompositorNodeMovieClip",
+                "clip": {
+                    "filepath": "D:\\Downloads\\660_2_0001-0660.avi",
+                    "frame_duration": 660,
+                    "frame_offset": 0,
+                    "frame_start": 1,
+                    "name": "660_2_0001-0660.avi",
+                    "source": "MOVIE",
+                    "use_fake_user": false
+                },
+                "color": [
+                    0.6079999804496765,
+                    0.6079999804496765,
+                    0.6079999804496765
+                ],
+                "height": 100.0,
+                "inputs": [],
+                "location": [
+                    -59.10704803466797,
+                    522.4207763671875
+                ],
+                "name": "Movie Clip",
+                "type": "MOVIECLIP",
+                "width": 140.0
+            }
+        ]
+    },
+    "materials": [
+        {
+            "blender_render": true,
+            "name": "Material",
+            "value": {
+                "__doc__": {},
+                "__module__": {},
+                "__slots__": {},
+                "active_node_material": {},
+                "active_texture": {},
+                "active_texture_index": 0,
+                "alpha": 1.0,
+                "ambient": 1.0,
+                "animation_data": {},
+                "animation_data_clear": {},
+                "animation_data_create": {},
+                "bl_rna": {},
+                "copy": {},
+                "cycles": {},
+                "darkness": 1.0,
+                "diffuse_color": [
+                    0.800000011920929,
+                    0.800000011920929,
+                    0.800000011920929
+                ],
+                "diffuse_fresnel": 0.10000000149011612,
+                "diffuse_fresnel_factor": 0.5,
+                "diffuse_intensity": 0.800000011920929,
+                "diffuse_ramp": {},
+                "diffuse_ramp_blend": {},
+                "diffuse_ramp_factor": 1.0,
+                "diffuse_ramp_input": {},
+                "diffuse_shader": {},
+                "diffuse_toon_size": 0.5,
+                "diffuse_toon_smooth": 0.10000000149011612,
+                "emit": 0.0,
+                "game_settings": {},
+                "halo": {},
+                "invert_z": false,
+                "is_library_indirect": false,
+                "is_updated": false,
+                "is_updated_data": false,
+                "library": {},
+                "light_group": {},
+                "line_color": {},
+                "line_priority": 0,
+                "mirror_color": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "name": {},
+                "node_tree": {},
+                "offset_z": 0.0,
+                "paint_active_slot": 0,
+                "paint_clone_slot": 0,
+                "pass_index": 0,
+                "physics": {},
+                "preview": {},
+                "preview_render_type": {},
+                "raytrace_mirror": {},
+                "raytrace_transparency": {},
+                "rna_type": {},
+                "roughness": 0.5,
+                "shadow_buffer_bias": 0.0,
+                "shadow_cast_alpha": 1.0,
+                "shadow_only_type": {},
+                "shadow_ray_bias": 0.0,
+                "specular_alpha": 1.0,
+                "specular_color": [
+                    1.0,
+                    1.0,
+                    1.0
+                ],
+                "specular_hardness": 50,
+                "specular_intensity": 0.5,
+                "specular_ior": 4.0,
+                "specular_ramp": {},
+                "specular_ramp_blend": {},
+                "specular_ramp_factor": 1.0,
+                "specular_ramp_input": {},
+                "specular_shader": {},
+                "specular_slope": 0.10000000149011612,
+                "specular_toon_size": 0.5,
+                "specular_toon_smooth": 0.10000000149011612,
+                "strand": {},
+                "subsurface_scattering": {
+                    "color": [
+                        0.6038274168968201,
+                        0.6038274168968201,
+                        0.6038274168968201
+                    ]
+                },
+                "tag": false,
+                "texture_paint_images": {},
+                "texture_paint_slots": {},
+                "texture_slots": {},
+                "translucency": 0.0,
+                "transparency_method": {},
+                "type": {},
+                "update_tag": {},
+                "use_cast_approximate": true,
+                "use_cast_buffer_shadows": true,
+                "use_cast_shadows": true,
+                "use_cast_shadows_only": false,
+                "use_cubic": false,
+                "use_diffuse_ramp": false,
+                "use_face_texture": false,
+                "use_face_texture_alpha": false,
+                "use_fake_user": false,
+                "use_full_oversampling": false,
+                "use_light_group_exclusive": false,
+                "use_light_group_local": false,
+                "use_mist": true,
+                "use_nodes": false,
+                "use_object_color": false,
+                "use_only_shadow": false,
+                "use_ray_shadow_bias": true,
+                "use_raytrace": true,
+                "use_shadeless": false,
+                "use_shadows": true,
+                "use_sky": false,
+                "use_specular_ramp": false,
+                "use_tangent_shading": false,
+                "use_textures": {},
+                "use_transparency": false,
+                "use_transparent_shadows": false,
+                "use_uv_project": false,
+                "use_vertex_color_light": false,
+                "use_vertex_color_paint": false,
+                "user_clear": {},
+                "user_of_id": {},
+                "users": 1,
+                "volume": {
+                    "emission_color": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "reflection_color": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ],
+                    "transmission_color": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            }
+        }
+    ]
+}

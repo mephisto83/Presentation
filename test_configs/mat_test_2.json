@@ -38,7 +38,7 @@
         "Materials": {
             "Materials": [
                 {
-                    "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_3.json"
+                    "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_4.json"
                 }
             ]
         }
@@ -51,7 +51,7 @@
                 "Group": "Stage"
             },
             "composite": {
-                "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_3.json"
+                "file": "D:\\dev\\Python\\Blender\\Presentation\\test_configs\\mat_comp_4.json"
             },
             "objects": [
                 {

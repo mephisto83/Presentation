@@ -7,9 +7,10 @@ import mathutils
 import os.path
 from types import *
 
+movie_propeties = ["name", "filepath","frame_start","frame_duration","frame_offset", "source",  "use_fake_user"]
 image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
 composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
-validmembers = ["image", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
+validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap"]
 
 debugmode = True
 def debugPrint(val=None):
@@ -103,6 +104,12 @@ class CompositeWriter():
                                     node[member[0]] = image_data
                                     for imageprop in image_properties:
                                         image_data[imageprop] = getattr(mval, imageprop)
+                                elif isinstance(mval, bpy.types.MovieClip):
+                                    debugPrint("found a movie")
+                                    movie_data = {}
+                                    node[member[0]] = movie_data
+                                    for movieprop in movie_propeties:
+                                        movie_data[movieprop] = getattr(mval, movieprop)
                                 elif isinstance(mval, bpy.types.ColorRamp):
                                     color_ramp = {"data": [] }
                                     node[member[0]] = color_ramp
@@ -241,6 +248,13 @@ class CompositeWriter():
             if key == imageName:
                 return True
         return False
+        
+    def hasMovie(self, movieName):
+        for key in bpy.data.movieclips.keys():
+            if key == movieName:
+                return True
+        return False
+
     def defineImage(self, node_image, newnode, node):
         image_name = node_image["name"]
         _image_properties = node_image
@@ -264,6 +278,17 @@ class CompositeWriter():
         for node_prop in composite_image_node_properties:
             setattr(newnode, node_prop, node[node_prop])
 
+    def defineMovie(self, node_movie, newnode, node):
+        movie_name = node_movie["name"]
+        movie_properties = node_movie
+        if self.hasMovie(movie_name) == False:
+            debugPrint("does not have movie {}".format(movie_name))
+            bpy.data.movieclips.load(filepath=movie_properties["filepath"])
+        else:
+            debugPrint("has movie {}".format(movie_name))
+        newnode.clip = bpy.data.movieclips[movie_name]
+        movie_node = newnode.clip
+        
     def defineNodeTree(self, node_tree, custom_mat, presentation_material_animation_points):
         debugPrint("create material")
         if "name" in custom_mat:
@@ -284,27 +309,11 @@ class CompositeWriter():
                         
                         node_tree_dict[node["_name"]] = newnode
                         members = inspect.getmembers(newnode)
-                        if isinstance(newnode, bpy.types.CompositorNodeImage):
-                            # image_name = node["image"]["name"]
+                        if isinstance(newnode, bpy.types.CompositorNodeMovieClip):
+                            debugPrint("defining movie")
+                            self.defineMovie(node["clip"], newnode, node)
+                        elif isinstance(newnode, bpy.types.CompositorNodeImage):
                             self.defineImage(node["image"], newnode, node)
-                            # _image_properties = node["image"]
-                            # if self.hasImage(image_name) == False:
-                            #     debugPrint("does not have image " + image_name)
-                            #     bpy.data.images.load(filepath=_image_properties["filepath"])
-                            # else:
-                            #     debugPrint("has image " + image_name)
-                            
-                            # newnode.image = bpy.data.images[node["image"]["name"]]
-                            # image_node = newnode.image
-
-                            # image_data = node["image"]
-                            # debugPrint("image properties")
-                            # for image_prop in image_properties:
-                            #     setattr(image_node, image_prop, image_data[image_prop])
-
-                            # debugPrint("composite image node properties")
-                            # for node_prop in composite_image_node_properties:
-                            #     setattr(newnode, node_prop, node[node_prop])
                         else:
                             for member in members:
                                 if any(member[0] in s for s in validmembers):
@@ -356,6 +365,9 @@ class CompositeWriter():
                                                         res.position = element["position"]
                                                     # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
                                                     # color_ramp["data"].append(element_data)
+                                            elif member[0] == "clip":
+                                                movie_data = newnode[member[0]]
+                                                self.defineMovie(movie_data, newnode, node)
                                             elif member[0] == "image":
                                                 # "image": {
                                                 #     "alpha_mode": "STRAIGHT",
