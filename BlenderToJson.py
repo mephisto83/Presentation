@@ -5,7 +5,7 @@ import json
 import math
 import mathutils
 from Util import debugPrint
-from Constants import KEYPOINT_SETTINGS, ANIMATION_TRANSLATION, SCENE_SETTINGS, BLENDER_SETTINGS, CYCLESRENDERSETTINGS, IMAGE_SETTINGS
+from Constants import KEYPOINT_SETTINGS, ANIMATION_TRANSLATION, SCENE_SETTINGS, BLENDER_SETTINGS, CYCLESRENDERSETTINGS, IMAGE_SETTINGS, KEYPOINT_OVERRIDE
 import os.path
 from types import *
 
@@ -37,25 +37,42 @@ class BlenderToJson():
             return temp
         except:
             return None
-    def translate(self, value):
+    def translate(self, value, isRotation):
         if isinstance(value, int) or isinstance(value, float) or isinstance(value, bool) or value == None or isinstance(value, str):
+            if isRotation == True:
+                if isinstance(value, int) or isinstance(value, float):
+                    return math.radians(value)
             return value
-        return [f for f in value]
-    def setPropertyValue(self, key , value, result):
+        if isRotation == False:
+            return [f for f in value]
+        debugPrint("translate : {}".format(value))
+        list = []
+        for f in value:
+            debugPrint("f: {}".format(f))
+            list.append(math.radians(f))
+        return list
+
+    def setPropertyValue(self, key , value, result , isRotation):
+        debugPrint("key: {}, value: {}, result: {}, isRotation".format(key, value, result, isRotation))
         split_key = key.split(".")
         temp = result
         for sk in split_key:
             if sk in temp:
                 if temp[sk] == None:
-                    temp[sk] = self.translate(value)
+                    if sk in KEYPOINT_OVERRIDE:
+                        temp[sk] = KEYPOINT_OVERRIDE[sk]
+                    else:
+                        temp[sk] = self.translate(value, isRotation)
                 else:
                     temp = temp[sk]
             else:
                 raise ValueError("Missing key in dictionary.")
 
-    def setProperty(self, key, settings_key, scene, result):
+    def setProperty(self, key, settings_key, scene, result, isRotation):
         prop_value = self.getProperty(settings_key, scene)
-        self.setPropertyValue(key, prop_value, result)
+        debugPrint("getProperty")
+        self.setPropertyValue(key, prop_value, result, isRotation)
+        debugPrint("setPropertyValue")
 
     def setSettings(self, scene, result):
         res = {}
@@ -66,13 +83,20 @@ class BlenderToJson():
                 prop_value = self.getProperty(_setting[key], scene)
                 if prop_value != None:
                     self.addProperty(key, res)
-                    self.setProperty(key, _setting[key], scene, res)
+                    self.setProperty(key, _setting[key], scene, res, False)
 
     def readCameras(self, scene, objects, keyframes):
         for obj in scene.objects:
             if obj.type == "CAMERA":
                 camera = {"type":"camera", "name":obj.name}
                 objects.append(camera)
+                self.readKeyFrames(obj, keyframes)
+    
+    def readSelectedObjects(self, scene, objects, keyframes):
+        for obj in bpy.data.objects:
+            if obj.type != "CAMERA" and obj.select == True:
+                newobject = {"type": "{{"+ obj.name +"_type}}", "name": "{{"+obj.name+"}}"}
+                objects.append(newobject)
                 self.readKeyFrames(obj, keyframes)
 
     def readKeyFrames(self, obj, keyframes):
@@ -86,11 +110,13 @@ class BlenderToJson():
                     keyframes.append(frame)
                     objects = []
                     frame["objects"] = objects
-                    object = {}
+                    object = { }
+
                     debugPrint("get name")
                     object["name"] = obj.name
                     objects.append(object)
                     self.setObjectKeyFrame(object, k, f, obj)
+                    debugPrint("set object key frame")
                     
         else:
             debugPrint("no actions")
@@ -106,14 +132,18 @@ class BlenderToJson():
             object[anim_property] = {}
         value = self.getProperty(fcurve.data_path + "." + prop, scene_obj)
         if fcurve.data_path == "rotation_euler":
+            debugPrint("value : {}".format(value))
             value = value * 360 / (math.pi*2)
         object[anim_property][prop] = value
-        _keyframe_point = {}
+        _keyframe_point = { "co": [f for f in keyframe_point.co]    }
         object[anim_property][prop+"_keyframe_point"] = _keyframe_point
         for kfp in KEYPOINT_SETTINGS:
+            debugPrint("{}".format(kfp))
             for key in kfp.keys():
                 self.addProperty(key, _keyframe_point)
-                self.setProperty(key, kfp[key], keyframe_point, _keyframe_point)
+                debugPrint("add property")
+                self.setProperty(key, kfp[key], keyframe_point, _keyframe_point, False)
+                debugPrint("set property")
     def getAnimationProperty(self, anim_trans, index):
         debugPrint("{}".format(anim_trans))
         for at in anim_trans:
@@ -143,12 +173,13 @@ class BlenderToJson():
             for scene_setting in SCENE_SETTINGS:
                 for key in scene_setting.keys():
                     self.addProperty(key, _scene)
-                    self.setProperty(key, scene_setting[key], scene, _scene)
+                    self.setProperty(key, scene_setting[key], scene, _scene, False)
                 objects = []
                 keyframes = []
                 _scene["objects"] = objects
                 debugPrint("read cameras")
                 self.readCameras(scene, objects, keyframes)
+                self.readSelectedObjects(scene, objects, keyframes)
                 _scene["keyframes"] = keyframes
             _scenes.append(_scene)
 

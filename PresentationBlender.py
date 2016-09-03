@@ -23,7 +23,7 @@ import json
 import bpy.types
 import inspect
 from types import *
-from Constants import RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX
+from Constants import _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
@@ -144,6 +144,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         return {'FINISHED'}
     def processAnimation(self, config):
         debugPrint("processing animation")
+        debugPrint("{}".format(config))
         self.settings = self.loadSettings(config)
         debugPrint("set settings")
         self.scenes = self.loadSceneConfig(config)
@@ -326,7 +327,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.context.scene.render.filepath = os.path.relpath(self.settings["filepath"])
             
         bpy.context.scene.render.tile_y = 64
+        if "tile_y" in self.settings:
+            bpy.context.scene.render.tile_y = self.settings["tile_y"]
+
         bpy.context.scene.render.tile_x = 64
+        if "tile_x" in self.settings:
+            bpy.context.scene.render.tile_x = self.settings["tile_x"]
         
         if "fps" in self.settings:
             debugPrint("fps in settings")
@@ -1254,17 +1260,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             obj["object"].location.x = float(pos["x"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=0)
+                self.setKeyFrameProperties(obj["object"], pos, "location", "x",  frame)
         if "y" in pos:
             obj["object"].location.y = float(pos["y"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=1)
+                self.setKeyFrameProperties(obj["object"], pos, "location", "y",  frame)
         if "z" in pos:
             obj["object"].location.z = float(pos["z"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=2)
-        if "handle_type" in pos:
-                if keyframe:
-                    self.setHandleType(obj, "location", pos["handle_type"])
+                self.setKeyFrameProperties(obj["object"], pos, "location", "z",  frame)
+        # if "handle_type" in pos:
+        #         if keyframe:
+        #             self.setHandleType(obj, "location", pos["handle_type"])
                     
     def scale(self, obj, scale, keyframe, frame):
             if scale == None:
@@ -1274,19 +1283,22 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 obj["object"].scale.x = (scale["x"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=0)
+                    self.setKeyFrameProperties(obj["object"], scale, "scale", "x",  frame)
                 
             if "y" in scale:
                 obj["object"].scale.y = (scale["y"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=1)
+                    self.setKeyFrameProperties(obj["object"], scale, "scale", "y",  frame)
                 
             if "z" in scale:
                 obj["object"].scale.z = (scale["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=2)
-            if "handle_type" in scale:
-                if keyframe:
-                    self.setHandleType(obj, "scale", scale["handle_type"])
+                    self.setKeyFrameProperties(obj["object"], scale, "scale", "y",  frame)
+            # if "handle_type" in scale:
+            #     if keyframe:
+            #         self.setHandleType(obj, "scale", scale["handle_type"])
     
     def setHandleType(self, obj, data_path, handle_type):
         for curve in obj["object"].animation_data.action.fcurves:
@@ -1305,14 +1317,16 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
     def getFirstOf(self, dp, curves):
         debugPrint("get first of {}".format(dp))
+        index = 0
         for c in curves:
-            debugPrint("c : {}".format(c))
             if c.data_path == dp:
-                return c.array_index
+                return index
+            index = index + 1
         return -1
     def getFcurveIndex(self, object, data_path, prop):
         if object.animation_data != None:
             fcurves = object.animation_data.action.fcurves
+            debugPrint("fcurves length : {}".format(len(fcurves)))
             indexOfPath = self.getFirstOf(data_path, fcurves)
             if indexOfPath == -1:
                 return []
@@ -1331,15 +1345,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         fcurveIndex = self.getFcurveIndex(obj, data_path, property)
         fcurve = obj.animation_data.action.fcurves[fcurveIndex]
         p_keyframe_point = property + "_keyframe_point"
+        debugPrint("fcurveIndex : {}".format(fcurveIndex))
         if p_keyframe_point in config:
             keyframe_config = config[p_keyframe_point]
             keyframepoint = self.getKeyFramePoint(obj, data_path, property, frame)
-            for key in keyframe_config.keys():
+            debugPrint("{}".format(keyframepoint))
+            debugPrint("keyframepoint : {}".format(keyframepoint.co))
+            for key in _keypoint_settings:
                 try:
-                    debugPrint("setting key {} : {}".format(key, keyframe_config[key]))
-                    setattr(keyframepoint, key, keyframe_config[key])
-                except e:
+                    if key in keyframe_config:
+                        if isinstance(keyframe_config[key], (tuple, list)):
+                            v = keyframe_config[key]
+                            debugPrint("set vector :{}".format(mathutils.Vector(v)))
+                            setattr(keyframepoint, key, mathutils.Vector(v))
+                            if key == "co":
+                                debugPrint("keyframepoint : {}".format(keyframepoint.co))
+                        else:
+                            debugPrint("setting key {} : {}".format(key, keyframe_config[key]))
+                            setattr(keyframepoint, key, keyframe_config[key])
+                except Exception as e:
                     debugPrint("couldnt set property : {}".format(e))
+            
 
     def rotation(self, obj, rotation, keyframe, frame):
             debugPrint("rotation")

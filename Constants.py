@@ -3,12 +3,13 @@ import bpy.types
 import inspect
 import json
 
-_keypoint_settings = ["handle_left", "handle_left_type", "handle_right", "handle_right_type", "interpolation","amplitude", "easing"]
+_keypoint_settings = ["co", "handle_left_type", "handle_right_type", "handle_left", "handle_right", "interpolation","amplitude", "easing"]
 KEYPOINT_SETTINGS = []
 for i in _keypoint_settings:
     KEYPOINT_SETTINGS.append({ i : i })
+KEYPOINT_OVERRIDE = { "handle_left_type": "FREE", "handle_right_type": "FREE" }
 
-ANIMATION_TRANSLATION = [ { "location": [{"x":0},{"y":1},{"z":2}], "json": "position", "blender":"location" } , { "scale": [{"x":0},{"y":1},{"z":2}], "json": "scale", "blender":"scale"} , { "rotation_euler": [{"x":0},{"y":1},{"z":2}], "json": "rotation", "blender":"rotation_euler", "convert":"degrees" }]
+ANIMATION_TRANSLATION = [ { "location": [{"x":0},{"y":1},{"z":2}], "json": "translate", "blender":"location" } , { "scale": [{"x":0},{"y":1},{"z":2}], "json": "scale", "blender":"scale"} , { "rotation_euler": [{"x":0},{"y":1},{"z":2}], "json": "rotation", "blender":"rotation_euler", "convert":"degrees" }]
 SCENE_SETTINGS = [{"proskies.skies.use_pl_skies" : "world.pl_skies_settings.use_pl_skies"}, {"proskies.skies.sun" : "world.pl_skies_settings.sun"}, {"proskies.skies.sky" : "world.pl_skies_settings.sky"}, {"proskies.skies.z_rotation" : "world.pl_skies_settings.z_rotation"},  {"proskies.skies.evn_previews" : "world.env_previews"},{"name":"name"}]
 BLENDER_SETTINGS = [{"RenderEngine": "render.engine"}, {"FrameStart": "frame_start"} , {"FrameEnd": "frame_end"}, {"samples": "cycles.samples"}, {"Device": "cycles.device"},{"fps":"render.fps"}, {"fps":"render.fps_base"}, {"resolution_x":"render.resolution_x"},
 {"resolution_y": "render.resolution_y"}]
