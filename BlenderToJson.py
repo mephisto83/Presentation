@@ -88,14 +88,14 @@ class BlenderToJson():
     def readCameras(self, scene, objects, keyframes):
         for obj in scene.objects:
             if obj.type == "CAMERA":
-                camera = {"type":"camera", "name":obj.name}
+                camera = { "type": "camera", "name": obj.name }
                 objects.append(camera)
                 self.readKeyFrames(obj, keyframes)
     
     def readSelectedObjects(self, scene, objects, keyframes):
         for obj in bpy.data.objects:
             if obj.type != "CAMERA" and obj.select == True:
-                newobject = {"type": "{{"+ obj.name +"_type}}", "name": obj.name }
+                newobject = { "type": "{{type}}", "name": obj.name,  }
                 objects.append(newobject)
                 self.readKeyFrames(obj, keyframes)
 

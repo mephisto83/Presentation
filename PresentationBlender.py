@@ -1306,46 +1306,24 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 i = len(curve.keyframe_points) - 1
                 if i > -1:
                     curve.keyframe_points[i].interpolation = handle_type
-    def getCurrentKeyframeIds(self, object, data_path, prop):
-        if object.animation_data != None:
-            fcurves = object.animation_data.action.fcurves
-            indexOfPath = self.getFirstOf(data_path, fcurves)
-            if indexOfPath == -1:
-                return []
-            fcurveIndex = indexOfPath + CONVERT_INDEX[prop]
-            return [f.co[0] for f in fcurves[fcurveIndex].keyframe_points]
 
-    def getFirstOf(self, dp, curves):
-        debugPrint("get first of {}".format(dp))
-        index = 0
-        for c in curves:
-            if c.data_path == dp:
-                return index
-            index = index + 1
-        return -1
-    def getFcurveIndex(self, object, data_path, prop):
+    def getFCurve(self, object, data_path, prop):
         if object.animation_data != None:
             fcurves = object.animation_data.action.fcurves
-            debugPrint("fcurves length : {}".format(len(fcurves)))
-            indexOfPath = self.getFirstOf(data_path, fcurves)
-            if indexOfPath == -1:
-                return []
-            fcurveIndex = indexOfPath + CONVERT_INDEX[prop]
-            return fcurveIndex
-        raise ValueError("no fcurveIndex")
-    
+            for fcurve in fcurves:
+                if fcurve.data_path == data_path and fcurve.array_index == CONVERT_INDEX[prop]:
+                    return fcurve
+        raise ValueError("no animation data in {}".format(object.name))
     def getKeyFramePoint(self, object, data_path, prop, frame):
-        fcurveIndex = self.getFcurveIndex(object, data_path, prop)
-        for f in object.animation_data.action.fcurves[fcurveIndex].keyframe_points:
+        fcurve = self.getFCurve(object, data_path, prop)
+        for f in fcurve.keyframe_points:
             if f.co[0] == frame:
                 return f
         raise ValueError("cannot find get keyframe_point")
 
     def setKeyFrameProperties(self, obj, config, data_path, property, frame):
-        fcurveIndex = self.getFcurveIndex(obj, data_path, property)
-        fcurve = obj.animation_data.action.fcurves[fcurveIndex]
+        fcurve = self.getFCurve(obj, data_path, property)
         p_keyframe_point = property + "_keyframe_point"
-        debugPrint("fcurveIndex : {}".format(fcurveIndex))
         if p_keyframe_point in config:
             keyframe_config = config[p_keyframe_point]
             keyframepoint = self.getKeyFramePoint(obj, data_path, property, frame)
@@ -1375,13 +1353,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint(rotation["x"])
                 obj["object"].rotation_euler.x = math.radians(rotation["x"])
                 if keyframe:
-                    # currentKeyFrames = self.getCurrentKeyframeIds(obj["object"], "rotation_euler", "x")
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=0)
                     self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "x",  frame)
             if "y" in rotation:
                 obj["object"].rotation_euler.y = math.radians(rotation["y"])
                 if keyframe:
-                    # currentKeyFrames = self.getCurrentKeyframeIds(obj["object"], "rotation_euler", "y")
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=1)
                     self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "y",  frame)
                 
