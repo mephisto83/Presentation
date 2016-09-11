@@ -1543,6 +1543,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 directory= scene_object_config["directory"], 
                 filter_image=True, 
                 filter_movie=True,
+                use_transparency= "use_transparency" in scene_object_config and scene_object_config["use_transparency"],
                 filter_glob="", 
                 relative=False)
             result["object"] = self.context.active_object
