@@ -11,7 +11,7 @@ def writeZip(files, to):
     with zipfile.ZipFile(to, 'x') as myzip:
         for file in files:
             myzip.write(file)
-
+blender_VERSION = "2.78"
 ver = "001"
 install_lights = True;
 if sys.platform == "win32":
