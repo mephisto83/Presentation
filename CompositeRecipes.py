@@ -1,7 +1,7 @@
 
 bl_info = {
-    "name": "Composite Recipes",
-    "category": "Composite"
+    "name": "Uber Rail Environments",
+    "category": "Uber"
 }
 
 
@@ -34,37 +34,6 @@ def getFilesInDirecotry(mypath):
     onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
     return onlyfiles
 
-
-
-### Read Recipes in from directory
-def readRecipesIn(directory):
-    _recipes = []
-    files = [f for f in getFilesInDirecotry(directory)]
-    debugPrint("read _recipes in")
-    debugPrint("{}".format(files))
-    for f in files:
-        try:
-            filepath = os.path.join(directory, f)
-            debugPrint("filepath : {}".format(filepath))
-            _file = open(filepath, 'r')
-            filecontents = _file.read()
-            obj = json.loads(filecontents)
-            debugPrint("json parsed")
-            basename = os.path.basename(f)
-            recipeObj = { "recipe" : obj , "name" : basename , "file": f }
-            _recipes.append(recipeObj)
-            #_recipes.extend([recipeObj])
-        except Exception as e:
-            debugPrint(e)
-    debugPrint("read recipes in")
-    return _recipes
-
-def setRecipes():
-    bpy.types.Scene.my_recipe = EnumProperty(
-        items = theRecipes,
-        name = "Recipes")
-
-setRecipes()
 
 def findRecipe(key):
     for n, recipe in enumerate(theRecipes):

@@ -90,15 +90,16 @@ class BlenderToJson():
             if obj.type == "CAMERA":
                 camera = { "type": "camera", "name": obj.name }
                 objects.append(camera)
-                self.readKeyFrames(obj, keyframes)
+                #self.readKeyFrames(obj, keyframes)
+                self.readAllFrames(obj, keyframes)
     
     def readSelectedObjects(self, scene, objects, keyframes):
         for obj in bpy.data.objects:
             if obj.type != "CAMERA" and obj.select == True:
-                newobject = { "type": "{{type}}", "name": obj.name,  }
+                newobject = { "type": "{{"+obj.name+"}}", "name": obj.name,  }
                 objects.append(newobject)
-                self.readKeyFrames(obj, keyframes)
-
+                #self.readKeyFrames(obj, keyframes)
+                self.readAllObjectFrames(obj, keyframes)
     def readKeyFrames(self, obj, keyframes):
         if hasattr(obj.animation_data, "action"):
             for f in obj.animation_data.action.fcurves:
@@ -120,6 +121,37 @@ class BlenderToJson():
                     
         else:
             debugPrint("no actions")
+    def readAllFrames(self, obj, keyframes):
+        for fr in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end):
+            bpy.context.scene.frame_set(fr)
+            frame = {}
+            frame["frame"] = fr
+            keyframes.append(frame)
+            objects = []
+            frame["objects"] = objects
+            object = {}
+            object["name"] = obj.name
+            object["translate"] = {"x": obj.location[0], "y": obj.location[1], "z": obj.location[2]}
+            object["rotation"] = {"x": obj.rotation_euler[0], "y": obj.rotation_euler[1], "z": obj.rotation_euler[2]}
+            object["scale"] = {"x": obj.scale[0], "y": obj.scale[1], "z": obj.scale[2]}
+            object["lens"] = obj.data.lens
+            objects.append(object)
+
+    def readAllObjectFrames(self, obj, keyframes):
+        for fr in range(bpy.context.scene.frame_start, bpy.context.scene.frame_end):
+            bpy.context.scene.frame_set(fr)
+            frame = {}
+            frame["frame"] = fr
+            keyframes.append(frame)
+            objects = []
+            frame["objects"] = objects
+            object = {}
+            object["name"] = obj.name
+            object["translate"] = {"x": obj.location[0], "y": obj.location[1], "z": obj.location[2]}
+            object["rotation"] = {"x": obj.rotation_euler[0], "y": obj.rotation_euler[1], "z": obj.rotation_euler[2]}
+            object["scale"] = {"x": obj.scale[0], "y": obj.scale[1], "z": obj.scale[2]}
+            objects.append(object)
+
     def setObjectKeyFrame(self, object, keyframe_point, fcurve, scene_obj):            
         debugPrint("get animation translation")
         animation_trans = self.getAnimationTranslation(fcurve.data_path)
