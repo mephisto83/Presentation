@@ -132,7 +132,7 @@ class BlenderToJson():
             object = {}
             object["name"] = obj.name
             object["translate"] = {"x": obj.location[0], "y": obj.location[1], "z": obj.location[2]}
-            object["rotation"] = {"x": obj.rotation_euler[0], "y": obj.rotation_euler[1], "z": obj.rotation_euler[2]}
+            object["rotation"] = {"x": math.degrees(obj.rotation_euler[0]), "y": math.degrees(obj.rotation_euler[1]), "z": math.degrees(obj.rotation_euler[2])}
             object["scale"] = {"x": obj.scale[0], "y": obj.scale[1], "z": obj.scale[2]}
             object["lens"] = obj.data.lens
             objects.append(object)
@@ -148,7 +148,7 @@ class BlenderToJson():
             object = {}
             object["name"] = obj.name
             object["translate"] = {"x": obj.location[0], "y": obj.location[1], "z": obj.location[2]}
-            object["rotation"] = {"x": obj.rotation_euler[0], "y": obj.rotation_euler[1], "z": obj.rotation_euler[2]}
+            object["rotation"] = {"x": math.degrees(obj.rotation_euler[0]), "y": math.degrees(obj.rotation_euler[1]), "z": math.degrees(obj.rotation_euler[2])}
             object["scale"] = {"x": obj.scale[0], "y": obj.scale[1], "z": obj.scale[2]}
             objects.append(object)
 

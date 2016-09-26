@@ -23,7 +23,7 @@ import json
 import bpy.types
 import inspect
 from types import *
-from Constants import _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX
+from Constants import _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
@@ -47,7 +47,16 @@ class PresentationBlenderGUI(bpy.types.Panel):
         TheCol.prop(context.scene, "presentation_settings")
         TheCol.operator("object.presentation_blender_maker", text="Update")
         TheCol.operator("object.presentation_blender_mat_comp_reader", text="Read Mat/Comp")
-        TheCol.operator("object.presentation_blender_from_scene", text="Read Scene")
+        TheCol.separator()
+        TheCol.separator()
+        TheCol.prop(context.scene, "use_output_folder")
+        TheCol.prop(context.scene, "presentation_scene_output_folder")
+        TheCol.operator("object.presentation_compositor_to_billboard", text="Billboard Composite")
+        TheCol.operator("object.presentation_blender_from_scene", text="Scene")
+        TheCol.operator("object.presentation_compositor", text="Composite")
+        TheCol.operator("object.write_config", text="Config")
+        TheCol.prop(context.scene, "presentation_name")
+        TheCol.operator("object.write_environment", text="Environment")
 
 class PresentationBlenderFromScene(bpy.types.Operator):
     """Presentation Blender From Scene """
@@ -65,11 +74,136 @@ class PresentationBlenderFromScene(bpy.types.Operator):
             blenderToJson = BlenderToJson()
             res = blenderToJson.readScene(self.context.scene)
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+                with open(os.path.join(scene.presentation_scene_output_folder, "scene.json"), 'w') as outfile:
+                    json.dump(res, outfile)
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
         except Exception as e:
             debugPrint("didnt work out")
             debugPrint(e)
         return {'FINISHED'}
+
+class CompositorToBillboard(bpy.types.Operator):
+    """Compositor to Billboard composite settings"""
+    bl_idname = "object.presentation_compositor_to_billboard"
+    bl_label = "Billboard Composite Settings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        
+        try:
+            debugPrint("start")
+            compositeWriter = CompositeWriter()
+            comp = compositeWriter.readComp(self.context.scene)
+            res = { "materials" : {}, "composite": comp }
+            text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+                with open(os.path.join(scene.presentation_scene_output_folder, "billboardComposite.json"), 'w') as outfile:
+                    json.dump(res, outfile)
+            bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
+        except Exception as e:
+            debugPrint("didnt work out") 
+            debugPrint(e)
+        debugPrint("Executing")
+
+        return {'FINISHED'}
+class WriteConfig(bpy.types.Operator):
+    """Write configuration"""
+    bl_idname = "object.write_config"
+    bl_label = "Write config"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        
+        try:
+            debugPrint("start")
+            res = {   "composite": "composite.json", "environment": "environment.json",    "scene": "scene.json",    "billboardComposite": "billboardComposite.json" }
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+                with open(os.path.join(scene.presentation_scene_output_folder, "config.json"), 'w') as outfile:
+                    json.dump(res, outfile)
+        except Exception as e:
+            debugPrint("didnt work out") 
+            debugPrint(e)
+        debugPrint("Executing")
+
+        return {'FINISHED'}
+
+class WriteEnvironment(bpy.types.Operator):
+    """Write Environment"""
+    bl_idname = "object.write_environment"
+    bl_label = "Write config"
+    bl_options = {'REGISTER', 'UNDO'}
+    def getCamera(self, scene):
+        for obj in scene.objects:
+            if obj.type == "CAMERA":
+                return obj
+        return None
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        
+        try:
+            debugPrint("start")
+            res = DEFAULT_ENVIRONMENT
+            res["name"] = scene.presentation_name
+            res["id"] = scene.presentation_name
+            res["folder"] = scene.presentation_name
+            res["resourceType"] = scene.presentation_name
+            camera = self.getCamera(scene)
+            if camera != None:
+                res["camera"] = camera.name
+            res["composite_parameters"]["start_frame"] = scene.frame_start
+            res["composite_parameters"]["end_frame"] = scene.frame_end
+            res["composite_parameters"]["frame_count"] = scene.frame_end - scene.frame_start + 1
+
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+                with open(os.path.join(scene.presentation_scene_output_folder, "environment.json"), 'w') as outfile:
+                    json.dump(res, outfile)
+        except Exception as e:
+            debugPrint("didnt work out") 
+            debugPrint(e)
+        debugPrint("Executing")
+
+        return {'FINISHED'}
+class CompositorToScene(bpy.types.Operator):
+    """Compositor to Scene composite settings"""
+    bl_idname = "object.presentation_compositor"
+    bl_label = "Composite Settings"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        
+        try:
+            debugPrint("start")
+            compositeWriter = CompositeWriter()
+            comp = compositeWriter.readComp(self.context.scene)
+            res = { "materials" : {}, "composite": comp }
+            text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+                with open(os.path.join(scene.presentation_scene_output_folder, "composite.json"), 'w') as outfile:
+                    json.dump(res, outfile)
+            bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
+        except Exception as e:
+            debugPrint("didnt work out") 
+            debugPrint(e)
+        debugPrint("Executing")
+
+        return {'FINISHED'}
+
 
 class PresentationBlenderMatCompReader(bpy.types.Operator):
     """Presentation Blender Material Composition"""
@@ -94,6 +228,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
             comp = compositeWriter.readComp(self.context.scene)
             res = { "materials" : materials, "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+            
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
             debugPrint("complete")
         except Exception as e:
@@ -1878,6 +2013,10 @@ def menu_func(self, context):
     self.layout.operator(PresentationBlenderAnimation.bl_idname)
     self.layout.operator(PresentationBlenderMatCompReader.bl_idname)
     self.layout.operator(PresentationBlenderFromScene.bl_idname)
+    self.layout.operator(CompositorToBillboard.bl_idname)
+    self.layout.operator(CompositorToScene.bl_idname)
+    self.layout.operator(WriteConfig.bl_idname)
+    self.layout.operator(WriteEnvironment.bl_idname)
 
 # store keymaps here to access after registration
 # addon_keymaps = []
@@ -1886,10 +2025,27 @@ def register():
     bpy.utils.register_class(PresentationBlenderMatCompReader)
     bpy.utils.register_class(PresentationBlenderGUI)
     bpy.utils.register_class(PresentationBlenderFromScene)
+    bpy.utils.register_class(CompositorToBillboard)
+    bpy.utils.register_class(CompositorToScene)
+    bpy.utils.register_class(WriteConfig)
+    bpy.utils.register_class(WriteEnvironment)
     bpy.types.Scene.presentation_settings = bpy.props.StringProperty \
       (name = "Movie settings",
         subtype = "FILE_PATH",
         description = "JSON description of the movie to generate")
+    bpy.types.Scene.presentation_name = bpy.props.StringProperty(name="Name")
+    
+
+    bpy.types.Scene.presentation_scene_output_folder = bpy.props.StringProperty \
+      (name = "Output folder",
+        subtype = "DIR_PATH",
+        description = "Output folder for stuff")
+
+    bpy.types.Scene.use_output_folder = bpy.props.BoolProperty(
+        name="Use Output folder",
+        description="Use the scene output folder to store settings",
+        default = False
+        )
     bpy.types.VIEW3D_MT_object.append(menu_func)
 
     # handle the keymap
@@ -1903,9 +2059,16 @@ def register():
 def unregister():
     bpy.utils.unregister_class(PresentationBlenderAnimation)
     del bpy.types.Scene.presentation_settings
+    del bpy.types.Scene.presentation_name
+    del bpy.types.Scene.presentation_scene_output_folder
+    del bpy.types.Scene.use_output_folder
     bpy.utils.unregister_class(PresentationBlenderMatCompReader)
     bpy.utils.unregister_class(PresentationBlenderGUI)
     bpy.utils.unregister_class(PresentationBlenderFromScene)
+    bpy.utils.unregister_class(CompositorToBillboard)
+    bpy.utils.unregister_class(CompositorToScene)
+    bpy.utils.unregister_class(WriteConfig)
+    bpy.utils.unregister_class(WriteEnvironment)
     bpy.types.VIEW3D_MT_object.remove(menu_func)
 
     # handle the keymap

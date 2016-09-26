@@ -50,3 +50,42 @@ for ls in IMAGE_SETTINGS:
     BLENDER_SETTINGS.append({ls : "render."+ls})
 for crs in CYCLESRENDERSETTINGS:
     BLENDER_SETTINGS.append({crs: "cycles."+crs})
+
+DEFAULT_ENVIRONMENT = {
+    "id": "TestScene_3",
+    "name": "TestScene_3",
+    "folder": "TestScene_3",
+    "resourceType": "TestScene_3",
+    "source": "empty.blend",
+    "type": "composite",
+    "src": "empty.png",
+    "config": {
+        "name": "placements",
+        "group": "placements",
+        "type": "custom",
+        "stage_group": "Wall_Tile_05"
+    },
+    "camera": "default_camera",
+    "composite_parameters": {
+        "start_frame": 1,
+        "end_frame": 178,
+        "frame_count": 178,
+        "environment_path": "",
+        "image_type": "exr"
+    },
+    "scene": None,
+    "billboardComposite": None,
+    "composite": None,
+    "proskies": None,
+    "parameters": [],
+    "places": [
+        {
+            "id": "Place01",
+            "name": "Place 1",
+            "src": None,
+            "camerapasses": [
+                "Long shot"
+            ]
+        }
+    ]
+}
