@@ -1391,17 +1391,17 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def translation(self, obj, pos, keyframe, frame):
         if pos == None:
                 return
-        if "x" in pos:
+        if "x" in pos and pos["x"] != None:
             obj["object"].location.x = float(pos["x"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=0)
                 self.setKeyFrameProperties(obj["object"], pos, "location", "x",  frame)
-        if "y" in pos:
+        if "y" in pos and pos["y"] != None:
             obj["object"].location.y = float(pos["y"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=1)
                 self.setKeyFrameProperties(obj["object"], pos, "location", "y",  frame)
-        if "z" in pos:
+        if "z" in pos and pos["z"] != None:
             obj["object"].location.z = float(pos["z"])
             if keyframe:
                 obj["object"].keyframe_insert(data_path="location", frame=frame, index=2)
@@ -1413,20 +1413,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def scale(self, obj, scale, keyframe, frame):
             if scale == None:
                 return
-            if "x" in scale:
+            if "x" in scale and scale["x"] != None:
                 debugPrint(scale["x"])
                 obj["object"].scale.x = (scale["x"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=0)
                     self.setKeyFrameProperties(obj["object"], scale, "scale", "x",  frame)
                 
-            if "y" in scale:
+            if "y" in scale and scale["y"] != None:
                 obj["object"].scale.y = (scale["y"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=1)
                     self.setKeyFrameProperties(obj["object"], scale, "scale", "y",  frame)
                 
-            if "z" in scale:
+            if "z" in scale and scale["z"] != None:
                 obj["object"].scale.z = (scale["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="scale", frame=frame, index=2)
@@ -1484,19 +1484,19 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("rotation")
             if rotation == None:
                 return
-            if "x" in rotation:
+            if "x" in rotation and rotation["x"] != None:
                 debugPrint(rotation["x"])
                 obj["object"].rotation_euler.x = math.radians(rotation["x"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=0)
                     self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "x",  frame)
-            if "y" in rotation:
+            if "y" in rotation and rotation["y"] != None:
                 obj["object"].rotation_euler.y = math.radians(rotation["y"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=1)
                     self.setKeyFrameProperties(obj["object"], rotation, "rotation_euler", "y",  frame)
                 
-            if "z" in rotation:
+            if "z" in rotation and rotation["z"] != None:
                 obj["object"].rotation_euler.z = math.radians(rotation["z"])
                 if keyframe:
                     obj["object"].keyframe_insert(data_path="rotation_euler", frame=frame, index=2)
