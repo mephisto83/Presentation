@@ -7,7 +7,7 @@ import bpy
 import zipfile
 import sys
 import shutil, errno
-blender_VERSION = "2.77"
+blender_VERSION = "2.78"
 ver = "001"
 install_lights = True;
 if sys.platform == "win32":
