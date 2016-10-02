@@ -1718,7 +1718,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 result["object"].data.extrude = scene_object_config["extrude"]
                 
             if "align" in scene_object_config and scene_object_config["align"]:
-                result["object"].data.align = scene_object_config["align"]
+                result["object"].data.align_x = scene_object_config["align"]
+            if "align_y" in scene_object_config and scene_object_config["align_y"]:
+                result["object"].data.align_y = scene_object_config["align_y"]
             if "size" in scene_object_config:
                 result["object"].data.size = scene_object_config["size"]
             if "font" in scene_object_config:
