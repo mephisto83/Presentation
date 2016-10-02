@@ -15,7 +15,7 @@ if sys.platform == "win32":
     blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\"+blender_VERSION #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
     blender_resources_path= os.path.join(basepath, "PresentationMaterials.zip")
     blender_resources_path_target= os.path.join(basepath, "blender_resources")
-    rail_resources_path = os.path.join(basepath, "RailEnvironments")
+    rail_resources_path = os.path.join(basepath, "RailEnvironments") # "D:\\UberRailEnvironments\\"#
     rail_resources_target_path = os.path.join(basepath, "blender_rail_resources")
     uber_path_file = os.path.join(basepath, "uber-" + ver + ".zip")
     uber_path_target = os.path.join(basepath, "uber")
