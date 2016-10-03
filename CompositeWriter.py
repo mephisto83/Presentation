@@ -10,7 +10,7 @@ from types import *
 movie_propeties = ["name", "filepath","frame_start","frame_duration","frame_offset", "source",  "use_fake_user"]
 image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
 composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
-validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type"]
+validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type","color_space", "projection"]
 
 debugmode = True
 def debugPrint(val=None):
@@ -18,6 +18,7 @@ def debugPrint(val=None):
         print(val)
 
 class CompositeWriter():
+    node_count = 0
     def readComp(self, scene):
         mat_value = {}
         mat = { "name" : scene.name, "value": mat_value }
@@ -27,10 +28,24 @@ class CompositeWriter():
             mat["blender_render"] = True
         self.readObjectToDictionary(scene, mat, mat_value)
         return mat_value
-    
+    def readComps(self, scenes):
+        _scenes = []
+        for _scene in scenes:
+            mat_value = {}
+            mat = { "name" : _scene.name, "value": mat_value }
+            _scenes.append(mat)
+            
+            if _scene.node_tree == None:
+                mat["blender_render"] = True
+            # if material.node_tree != None:
+            self.readObjectToDictionary(_scene, mat, mat_value)
+            t = [f for f in _scenes if f["name"] == _scene.name]
+            if len(t) == 0:
+                _scenes.append(mat)
+        return _scenes
+
     def readMats(self, _materials):
         materials = []
-        node_count = 0
         for material in _materials:
             mat_value = {}
             mat = { "name" : material.name, "value": mat_value }
@@ -45,8 +60,47 @@ class CompositeWriter():
                 materials.append(mat)
         return materials
 
+    def readGroups(self, nodeGroups):
+        groups = []
+        debugPrint("read groups")
+        for group in nodeGroups:
+            mat_value = {}
+            mat = { "name": group.name, "value": mat_value }
+            groups.append(mat)
+
+            self.readGroupToDictionary(group, mat, mat_value)
+            t = [f for f in groups if f["name"] == group.name]
+            if len(t) == 0:
+                groups.append(mat)
+        return groups
+    
+    def readWorlds(self, worlds):
+        _worlds = []
+        for world in worlds:
+            mat_value = {}
+            mat = { "name": world.name, "value": mat_value }
+            _worlds.append(mat)
+            debugPrint("read worlds")
+            debugPrint(world)
+            self.readObjectToDictionary(world, mat, mat_value)
+            t = [f for f in _worlds if f["name"] == world.name]
+            if len(t) == 0:
+                _worlds.append(mat)
+        return _worlds
+
+    def readGroupToDictionary(self, group_tree, mat, mat_value):
+        nodes = []
+        nodes_ref = []
+        links = []
+        debugPrint("read group to dictionary")
+        mat_value["nodes"] = nodes
+        mat_value["links"] = links
+        for _node in group_tree.nodes:
+            self.processNode(_node, nodes, nodes_ref, links, group_tree, mat, mat_value)
+        for _link in group_tree.links:
+            self.processLinks(_link, nodes, nodes_ref, links, group_tree, mat, mat_value)
+
     def readObjectToDictionary(self, material, mat, mat_value):
-        node_count = 0
         if material.node_tree == None:
             mat["blender_render"] = True
             members = inspect.getmembers(material)
@@ -65,90 +119,102 @@ class CompositeWriter():
             mat_value["nodes"] = nodes
             mat_value["links"] = links
             for _node in material.node_tree.nodes:
-                inputs = []
-                node_name = "node_{}".format(node_count)
-                node = {"_type" : _node.bl_idname, "inputs": inputs, "_name" : node_name, "location": [f for f in _node.location] }
-                nodes_ref.append({"node": _node, "name": node_name })
-                node_count =  node_count + 1
-                nodes.append(node)
-                members = inspect.getmembers(_node)
-                for member in members:
-                    if any(member[0] in s for s in validmembers):
-                        try:
-                            try:
-                                mval = member[1]
-                                debugPrint("found " + member[0])
-                                if isinstance(mval, bpy.types.ShaderNodeTree):
-                                    debugPrint(member[1].name )
-                                    node[member[0]] = member[1].name
-                                elif isinstance(mval, bpy.types.CurveMapping):
-                                    curvemap = { "data" : [] }
-                                    node[member[0]] = curvemap
-                                    curves = [curve for curve in mval.curves]
-                                    k = 0 
-                                    for curve in curves:
-                                        curve_data = {"data" :  [] , "index": k}
-                                        k = k + 1
-                                        points = [f for f in curve.points]
-                                        i = 0
-                                        for point in points:
-                                            point_data = {"index": i}
-                                            i = i + 1
-                                            point_data["location"] = [point.location[0], point.location[1]]
-                                            point_data["handle_type"] = point.handle_type
-                                            curve_data["data"].append(point_data)
-                                        curvemap["data"].append(curve_data)
-                                elif isinstance(mval, bpy.types.Image):
-                                    debugPrint("found an image")
-                                    image_data = { }
-                                    node[member[0]] = image_data
-                                    for imageprop in image_properties:
-                                        image_data[imageprop] = getattr(mval, imageprop)
-                                elif isinstance(mval, bpy.types.MovieClip):
-                                    debugPrint("found a movie")
-                                    movie_data = {}
-                                    node[member[0]] = movie_data
-                                    for movieprop in movie_propeties:
-                                        movie_data[movieprop] = getattr(mval, movieprop)
-                                elif isinstance(mval, bpy.types.ColorRamp):
-                                    color_ramp = {"data": [] }
-                                    node[member[0]] = color_ramp
-                                    elements = [element for element in mval.elements]
-                                    for element in elements:
-                                        element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
-                                        color_ramp["data"].append(element_data) 
-                                elif isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, str):
-                                    node[member[0]] = member[1]
-                                else:
-                                    node[member[0]] = [f for f in member[1]]
-                            except  Exception as e:
-                                debugPrint(e)
-                                mval = member[1]
-                                if isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, list):
-                                    node[member[0]] = member[1]
-                        except:
-                            debugPrint(member)
-                for i in range(len(_node.inputs)):
-                    input = _node.inputs[i]
-                    if hasattr(input, "default_value"):
-                        # if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
-                        try:
-                            try:
-                                inputs.append({"index": i, "value": [f for f in input.default_value] })
-                            # elif isinstance(input.default_value, float) or isinstance(input.default_value, int) or isinstance(input.default_value, str) or isinstance(input.default_value, bool ):
-                            except:
-                                inputs.append({"index": i, "value": input.default_value })
-                        except:
-                            debugPrint("didnt set anything")
+                self.processNode(_node, nodes, nodes_ref, links, material, mat, mat_value)
             for _link in material.node_tree.links:
-                from_ = self.selectNodeName(_link.from_node, nodes_ref)
-                to_ = self.selectNodeName(_link.to_node, nodes_ref)
-                to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
-                from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
+                self.processLinks(_link, nodes, nodes_ref, links, material, mat, mat_value)
 
-                links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name , "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name, "name": to_ } })
-                    
+    def processLinks(self,_link, nodes, nodes_ref, links, material, mat, mat_value):
+        from_ = self.selectNodeName(_link.from_node, nodes_ref)
+        to_ = self.selectNodeName(_link.to_node, nodes_ref)
+        to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
+        from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
+        links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name , "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name, "name": to_ } })
 
+    def processNode(self,_node, nodes, nodes_ref, links, material, mat, mat_value):
+        inputs = []
+        node_count = self.node_count
+        node_name = "node_{}".format(node_count)
+        bl_idname = _node.bl_idname
+        if not "dependencies" in mat_value:
+            mat_value["dependencies"] = []
+        location = [f for f in _node.location]
+        node = {"_type" :  bl_idname, "inputs": inputs, "_name" : node_name, "location": location }
+        nodes_ref.append({"node": _node, "name": node_name })
+        self.node_count =  node_count + 1
+        node_count = self.node_count
+        nodes.append(node)
+        if bl_idname == "ShaderNodeGroup":
+            mat_value["dependencies"].append(_node.name)
+        members = inspect.getmembers(_node)
+        for member in members:
+            if any(member[0] in s for s in validmembers):
+                try:
+                    try:
+                        mval = member[1]
+                        #debugPrint("found " + member[0])
+                        if isinstance(mval, bpy.types.ShaderNodeTree):
+                            debugPrint(member[1].name )
+                            node[member[0]] = member[1].name
+                        elif isinstance(mval, bpy.types.CurveMapping):
+                            curvemap = { "data" : [] }
+                            node[member[0]] = curvemap
+                            curves = [curve for curve in mval.curves]
+                            k = 0 
+                            for curve in curves:
+                                curve_data = {"data" :  [] , "index": k}
+                                k = k + 1
+                                points = [f for f in curve.points]
+                                i = 0
+                                for point in points:
+                                    point_data = {"index": i}
+                                    i = i + 1
+                                    point_data["location"] = [point.location[0], point.location[1]]
+                                    point_data["handle_type"] = point.handle_type
+                                    curve_data["data"].append(point_data)
+                                curvemap["data"].append(curve_data)
+                        elif isinstance(mval, bpy.types.Image):
+                            debugPrint("found an image")
+                            image_data = { }
+                            node[member[0]] = image_data
+                            for imageprop in image_properties:
+                                image_data[imageprop] = getattr(mval, imageprop)
+                        elif isinstance(mval, bpy.types.MovieClip):
+                            debugPrint("found a movie")
+                            movie_data = {}
+                            node[member[0]] = movie_data
+                            for movieprop in movie_propeties:
+                                movie_data[movieprop] = getattr(mval, movieprop)
+                        elif isinstance(mval, bpy.types.ColorRamp):
+                            color_ramp = {"data": [] }
+                            node[member[0]] = color_ramp
+                            elements = [element for element in mval.elements]
+                            for element in elements:
+                                element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
+                                color_ramp["data"].append(element_data) 
+                        elif isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, str):
+                            node[member[0]] = member[1]
+                        else:
+                            node[member[0]] = [f for f in member[1]]
+                    except  Exception as e:
+                        debugPrint(e)
+                        mval = member[1]
+                        if isinstance(mval, bool) or isinstance(mval,  float) or isinstance(mval,  int) or isinstance(mval, list):
+                            node[member[0]] = member[1]
+                except:
+                    debugPrint(member)
+        if hasattr(_node, "inputs"):
+            for i in range(len(_node.inputs)):
+                input = _node.inputs[i]
+                if hasattr(input, "default_value"):
+                    # if hasattr(input.default_value, "data") and input.default_value.data.type == "RGBA":
+                    try:
+                        try:
+                            inputs.append({"index": i, "value": [f for f in input.default_value] })
+                        # elif isinstance(input.default_value, float) or isinstance(input.default_value, int) or isinstance(input.default_value, str) or isinstance(input.default_value, bool ):
+                        except:
+                            inputs.append({"index": i, "value": input.default_value })
+                    except:
+                        debugPrint("didnt set anything")
 
     def getIndexOf(self, socket, inputs):
         c = 0
@@ -242,7 +308,47 @@ class CompositeWriter():
                 for node in tree.nodes:
                     tree.nodes.remove(node)
                 self.defineNodeTree(tree, custom_mat, presentation_material_animation_points)
+    def setup(self, config, context, presentation_material_animation_points):
+        if "groups" in config:
+            self.setupGroups(config["groups"], context, presentation_material_animation_points)
+    
+    def setupGroups(self, configs, context, presentation_material_animation_points):
+        debugPrint("setup groups")
+        sortedConfigs = self.sortByDependencies(configs)
+        for group in sortedConfigs:
+            debugPrint("setup group {}".format(group["name"]))
+            self.setupGroup(group, context, presentation_material_animation_points)
+    def sortByDependencies(self, configs):
+        res = []
 
+        for  i in range(len(configs)):
+            for j in range(len(configs)):
+                config = configs[j]
+                debugPrint("config name :  {}".format(config["name"]))
+                if self.containsDeps(res, config["value"]["dependencies"]):
+                    if self.notIn(res, config):
+                        res.append(config)
+        
+        return res
+    def notIn(self, res, config):
+        for r in res:
+            if config == r:
+                return False
+        return True
+    def containsDeps(self, res, deps):
+        for d in deps:
+            found = False
+            for r in res:
+                if r["name"] == d:
+                    found = True
+            if not found:
+                return False
+        return True
+
+    def setupGroup(self, config, context, presentation_material_animation_points):
+        node_tree = bpy.data.node_groups.new(config["name"], 'ShaderNodeTree')
+        self.defineNodeTree(node_tree, config, presentation_material_animation_points)
+        
     def hasImage(self, imageName):
         for key in bpy.data.images.keys():
             if key == imageName:
@@ -256,7 +362,9 @@ class CompositeWriter():
         return False
 
     def defineImage(self, node_image, newnode, node):
-        image_name = node_image["name"]
+        debugPrint("node_image : {}".format(node_image))
+        debugPrint("node : {}".format(node))
+        image_name = os.path.basename(node_image["filepath"])# node_image["name"]
         _image_properties = node_image
         if self.hasImage(image_name) == False:
             debugPrint("does not have image " + image_name)
@@ -264,7 +372,7 @@ class CompositeWriter():
         else:
             debugPrint("has image " + image_name)
         
-        newnode.image = bpy.data.images[node_image["name"]]
+        newnode.image = bpy.data.images[image_name]
         image_node = newnode.image
         if "layer" in node:
             setattr(newnode, "layer", node["layer"])
@@ -273,7 +381,8 @@ class CompositeWriter():
         for image_prop in image_properties:
             debugPrint(" setting {} to {}".format(image_prop, image_data[image_prop]))
             setattr(image_node, image_prop, image_data[image_prop])
-
+        
+        image_node.name = image_name
         debugPrint("composite image node properties")
         for node_prop in composite_image_node_properties:
             setattr(newnode, node_prop, node[node_prop])
@@ -366,8 +475,8 @@ class CompositeWriter():
                                                     # element_data = { "alpha": element.alpha, "position": element.position, "color": [c for c in element.color] }
                                                     # color_ramp["data"].append(element_data)
                                             elif member[0] == "clip":
-                                                movie_data = newnode[member[0]]
-                                                self.defineMovie(movie_data, newnode, node)
+                                                movie_data = node[member[0]]
+                                                self.defineMovie(node["clip"], newnode, node)
                                             elif member[0] == "image":
                                                 # "image": {
                                                 #     "alpha_mode": "STRAIGHT",
@@ -377,8 +486,10 @@ class CompositeWriter():
                                                 #     "source": "FILE",
                                                 #     "use_fake_user": false
                                                 # }
-                                                image_data = newnode[member[0]]
-                                                self.defineImage(image_data, newnode, node)
+                                                debugPrint("defining image_data")
+                                                debugPrint("{}".format(newnode))
+                                                image_data = node[member[0]]
+                                                self.defineImage(node["image"], newnode, node)
                                             else:
                                                 setattr(newnode, member[0], node[member[0]])
                                         except Exception as e:
