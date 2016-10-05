@@ -10,7 +10,7 @@ from types import *
 movie_propeties = ["name", "filepath","frame_start","frame_duration","frame_offset", "source",  "use_fake_user"]
 image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
 composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
-validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type","color_space", "projection"]
+validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type","color_space", "projection", "label"]
 
 debugmode = True
 def debugPrint(val=None):
@@ -19,6 +19,7 @@ def debugPrint(val=None):
 
 class CompositeWriter():
     node_count = 0
+    forceRelative = False
     def readComp(self, scene):
         mat_value = {}
         mat = { "name" : scene.name, "value": mat_value }
@@ -118,17 +119,23 @@ class CompositeWriter():
             links = []
             mat_value["nodes"] = nodes
             mat_value["links"] = links
-            for _node in material.node_tree.nodes:
-                self.processNode(_node, nodes, nodes_ref, links, material, mat, mat_value)
-            for _link in material.node_tree.links:
-                self.processLinks(_link, nodes, nodes_ref, links, material, mat, mat_value)
+            try:
+                for _node in material.node_tree.nodes:
+                    self.processNode(_node, nodes, nodes_ref, links, material, mat, mat_value)
+                for _link in material.node_tree.links:
+                    self.processLinks(_link, nodes, nodes_ref, links, material, mat, mat_value)
+            except Exception as e:
+                debugPrint(e)
 
     def processLinks(self,_link, nodes, nodes_ref, links, material, mat, mat_value):
-        from_ = self.selectNodeName(_link.from_node, nodes_ref)
-        to_ = self.selectNodeName(_link.to_node, nodes_ref)
-        to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
-        from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
-        links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name , "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name, "name": to_ } })
+        try:
+            from_ = self.selectNodeName(_link.from_node, nodes_ref)
+            to_ = self.selectNodeName(_link.to_node, nodes_ref)
+            to_index = self.getIndexOf(_link.to_socket, _link.to_node.inputs)
+            from_index = self.getIndexOf(_link.from_socket, _link.from_node.outputs)
+            links.append( { "from": {"index": from_index ,  "port": _link.from_socket.name , "name": from_ }, "to": {"index": to_index , "port": _link.to_socket.name, "name": to_ } })
+        except Exception as e:
+            debugPrint(e)
 
     def processNode(self,_node, nodes, nodes_ref, links, material, mat, mat_value):
         inputs = []
@@ -178,12 +185,28 @@ class CompositeWriter():
                             node[member[0]] = image_data
                             for imageprop in image_properties:
                                 image_data[imageprop] = getattr(mval, imageprop)
+                            if self.forceRelative:
+                                filepath = getattr(mval, "filepath")
+                                debugPrint("filepath  :  {}".format(filepath) )
+                                debugPrint("filepath basename  :  {}".format(os.path.basename(filepath)))
+                                head, tail = os.path.split(filepath)
+                                debugPrint("head {}".format(head))
+                                debugPrint("tail {}".format(tail))
+                                image_data["filepath_raw"] = os.path.join(self.relativePath, head)
+                                image_data["filepath"] = os.path.join(self.relativePath, head)
                         elif isinstance(mval, bpy.types.MovieClip):
                             debugPrint("found a movie")
                             movie_data = {}
                             node[member[0]] = movie_data
                             for movieprop in movie_propeties:
                                 movie_data[movieprop] = getattr(mval, movieprop)
+                            if self.forceRelative:
+                                filepath = getattr(mval, "filepath")
+                                debugPrint("filepath  :  {}".format(filepath) )
+                                debugPrint("filepath basename  :  {}".format(os.path.basename(filepath)))
+                                head, tail = os.path.split(filepath)
+                                movie_data["filepath_raw"] = os.path.join(self.relativePath, head)
+                                movie_data["filepath"] = os.path.join(self.relativePath, head)
                         elif isinstance(mval, bpy.types.ColorRamp):
                             color_ramp = {"data": [] }
                             node[member[0]] = color_ramp
@@ -308,6 +331,19 @@ class CompositeWriter():
                 for node in tree.nodes:
                     tree.nodes.remove(node)
                 self.defineNodeTree(tree, custom_mat, presentation_material_animation_points)
+    def setupWorld(self, world, context, presentation_material_animation_points):
+        #composite_settings["groups"]
+        bpy.data.worlds.new(world["name"])
+        newworld = bpy.data.worlds[world["name"]]
+        debugPrint("newworld")
+        debugPrint(world["name"])
+        debugPrint(newworld)
+        newworld.use_nodes = True
+        
+        for node in newworld.node_tree.nodes:
+            newworld.node_tree.nodes.remove(node)
+
+        self.defineNodeTree(newworld.node_tree, world, presentation_material_animation_points)
     def setup(self, config, context, presentation_material_animation_points):
         if "groups" in config:
             self.setupGroups(config["groups"], context, presentation_material_animation_points)
@@ -365,6 +401,8 @@ class CompositeWriter():
         debugPrint("node_image : {}".format(node_image))
         debugPrint("node : {}".format(node))
         image_name = os.path.basename(node_image["filepath"])# node_image["name"]
+        if image_name == "" or image_name == None:
+            image_name = node_image["filepath"].split("/")[-1]
         _image_properties = node_image
         if self.hasImage(image_name) == False:
             debugPrint("does not have image " + image_name)
@@ -431,7 +469,6 @@ class CompositeWriter():
                                         try:
                                             if member[0] == "node_tree":
                                                 debugPrint("setting shader node tree " + node[member[0]])
-                                                #setattr(newnode, member[0], bpy.data.node_groups[node[member[0]]])
                                                 newnode.node_tree = bpy.data.node_groups[node[member[0]]]
                                                 debugPrint("set node groups")
                                             elif isinstance(member[1], bpy.types.CurveMapping) and member[1] != None:
@@ -520,34 +557,36 @@ class CompositeWriter():
                     debugPrint("link definitions")
                     links = node_tree.links
                     for link in link_definitions:
-                        debugPrint("link defintions ")
-                        from_node = link["from"]["name"]
-                        from_port = link["from"]["port"]
-                        from_index = None
-                        if "index" in link["from"]:
-                            from_index = link["from"]["index"]
-                        to_node = link["to"]["name"]
-                        to_port = link["to"]["port"]
-                        to_index = None
-                        if "index" in link["to"]:
-                            to_index = link["to"]["index"]
-                        debugPrint("from_node : {}".format(from_node))
-                        debugPrint("from_port : {}".format(from_port))
-                        debugPrint("to_node : {}".format(to_node))
-                        debugPrint("to_port : {}".format(to_port))
+                        try:
+                            debugPrint("link defintions ")
+                            from_node = link["from"]["name"]
+                            from_port = link["from"]["port"]
+                            from_index = None
+                            if "index" in link["from"]:
+                                from_index = link["from"]["index"]
+                            to_node = link["to"]["name"]
+                            to_port = link["to"]["port"]
+                            to_index = None
+                            if "index" in link["to"]:
+                                to_index = link["to"]["index"]
+                            debugPrint("from_node : {}".format(from_node))
+                            debugPrint("from_port : {}".format(from_port))
+                            debugPrint("to_node : {}".format(to_node))
+                            debugPrint("to_port : {}".format(to_port))
 
-                        if to_index == None:
-                            output = node_tree_dict[from_node].outputs[from_port]
-                        else:
-                            output = node_tree_dict[from_node].outputs[from_index]
+                            if to_index == None:
+                                output = node_tree_dict[from_node].outputs[from_port]
+                            else:
+                                output = node_tree_dict[from_node].outputs[from_index]
 
-                        if from_index == None:
-                            input = node_tree_dict[to_node].inputs[to_port]
-                        else:
-                            input = node_tree_dict[to_node].inputs[to_index]
+                            if from_index == None:
+                                input = node_tree_dict[to_node].inputs[to_port]
+                            else:
+                                input = node_tree_dict[to_node].inputs[to_index]
 
-                        links.new(output, input)
-                        print
+                            links.new(output, input)
+                        except Exception as e:
+                            debugPrint(e)
                         
             else : 
                 debugPrint("no material definition found")

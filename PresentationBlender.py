@@ -22,6 +22,7 @@ import os.path
 import json
 import bpy.types
 import inspect
+import shutil, errno
 from types import *
 from Constants import _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
 debugmode = True
@@ -60,6 +61,7 @@ class PresentationBlenderGUI(bpy.types.Panel):
         TheCol.operator("object.write_worlds", text="Worlds")
         TheCol.operator("object.write_groups", text="Groups")
         TheCol.operator("object.write_materials", text="Materials")
+        TheCol.operator("object.copy_textures", text="Copy Textures")
         TheCol.separator()
         TheCol.separator()
         TheCol.prop(context.scene, "matcompositefile")
@@ -106,7 +108,7 @@ class CompositorToBillboard(bpy.types.Operator):
             debugPrint("start")
             compositeWriter = CompositeWriter()
             comp = compositeWriter.readComp(self.context.scene)
-            res = { "materials" : {}, "composite": comp }
+            res = { "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "billboardComposite.json"), 'w') as outfile:
@@ -131,10 +133,54 @@ class WriteConfig(bpy.types.Operator):
         
         try:
             debugPrint("start")
-            res = { "composite": "composite.json", "environment": "environment.json", "groups":"groups.json", "worlds":"worlds.json", "scene": "scene.json",    "billboardComposite": "billboardComposite.json" }
+            res = { 
+                "composite": "composite.json", 
+                "environment": "environment.json", 
+                "composite.groups":"groups.json", 
+                "composite.materials": "materials.json",
+                "composite.worlds":"worlds.json", 
+                "scene": "scene.json", 
+                "billboardComposite": "billboardComposite.json",
+                "billboardComposite.groups": "groups.json",
+                "billboardComposite.materials": "materials.json",
+                "billboardComposite.worlds": "worlds.json" 
+                }
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "config.json"), 'w') as outfile:
                     json.dump(res, outfile)
+        except Exception as e:
+            debugPrint("didnt work out") 
+            debugPrint(e)
+        debugPrint("Executing")
+
+        return {'FINISHED'}
+class CopyTextureDirectory(bpy.types.Operator):
+    """Copy Textures to directory"""
+    bl_idname = "object.copy_textures"
+    bl_label = "Copy textures"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def copyanything(self, src, dst):
+        try:
+            shutil.copytree(src, dst)
+        except OSError as exc: # python >2.5
+            if exc.errno == errno.ENOTDIR:
+                shutil.copy(src, dst)
+            else: raise
+
+    def execute(self, context):
+        scene = context.scene
+        cursor = scene.cursor_location
+        obj = scene.objects.active
+        self.context = context
+        
+        try:
+            debugPrint("start")
+            if scene.use_output_folder and scene.presentation_scene_output_folder != None and scene.presentation_name != None:
+                dst = os.path.join(scene.presentation_scene_output_folder , scene.presentation_name, "textures")
+                if os.path.exists(dst):
+                    shutil.rmtree(dst)
+                self.copyanything(os.path.join(bpy.path.abspath("//"), "textures"), dst)
         except Exception as e:
             debugPrint("didnt work out") 
             debugPrint(e)
@@ -157,8 +203,10 @@ class WriteWorlds(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
+            compositeWriter.forceRelative = context.scene.presentation_name != None
+            compositeWriter.relativePath = context.scene.presentation_name
             worlds = compositeWriter.readWorlds(bpy.data.worlds)
-            res = { "materials" : {}, "composite": {}, "worlds": worlds }
+            res = { "worlds": worlds }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "worlds.json"), 'w') as outfile:
@@ -185,8 +233,10 @@ class WriteGroups(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
+            compositeWriter.forceRelative = context.scene.presentation_name != None
+            compositeWriter.relativePath = context.scene.presentation_name
             groups = compositeWriter.readGroups(bpy.data.node_groups)
-            res = { "materials" : {}, "composite": {}, "groups": groups }
+            res = { "groups": groups }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "groups.json"), 'w') as outfile:
@@ -212,8 +262,10 @@ class WriteMaterials(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
+            compositeWriter.forceRelative = context.scene.presentation_name != None
+            compositeWriter.relativePath = context.scene.presentation_name
             materials = compositeWriter.readMats(bpy.data.materials)
-            res = { "materials" : materials, "composite": {} }
+            res = { "materials" : materials }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "materials.json"), 'w') as outfile:
@@ -537,14 +589,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("deleted scene")
             if res.pop() != "CANCELLED":
                 running = True
+        lastscene = bpy.data.scenes[0]
         for scene in scenes:
             bpy.ops.scene.new(type='NEW')
             cloneScene = bpy.context.scene
             cloneScene.name = scene["name"]
+        if len([f for f in bpy.data.scenes if f.name == lastscene.name]) > 0:
+            self.switchToScene(lastscene.name)
+            bpy.ops.scene.delete()
+
     def switchToScene(self, name):
         bpy.data.screens['Default'].scene = bpy.data.scenes[name]
         bpy.context.screen.scene=bpy.data.scenes[name]
         self.scene = bpy.context.screen.scene
+        
     def processWorld(self, scene):
         if "world" in scene:
             debugPrint("set the world ")
@@ -659,10 +717,17 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         f = open(custom_mat["file"], 'r')
                         filecontents = f.read()
                         composite_settings = json.loads(filecontents)
+                        if "groups" in composite_settings:
+                            debugPrint("define groups")
+                            compositeWriter.setupGroups(composite_settings["groups"], self.context, self.presentation_material_animation_points)
                         if "materials" in composite_settings:
                             for material in composite_settings["materials"]:
                                 compositeWriter.defineMaterial(material, self.presentation_material_animation_points)
                                 # self.defineMaterial(material)
+                        if "worlds" in composite_settings:
+                            debugPrint("define worlds")
+                            for world in composite_settings["worlds"]:
+                                compositeWriter.setupWorld(world, self.context, self.presentation_material_animation_points)
                             
 
     def hasGroupByName(self, name):
@@ -2135,6 +2200,7 @@ def menu_func(self, context):
     self.layout.operator(CompositorToScene.bl_idname)
     self.layout.operator(WriteConfig.bl_idname)
     self.layout.operator(WriteWorlds.bl_idname)
+    self.layout.operator(CopyTextureDirectory.bl_idname)
     self.layout.operator(WriteGroups.bl_idname)
     self.layout.operator(WriteEnvironment.bl_idname)
     self.layout.operator(WriteMaterials.bl_idname)
@@ -2151,6 +2217,7 @@ def register():
     bpy.utils.register_class(CompositorToScene)
     bpy.utils.register_class(WriteConfig)
     bpy.utils.register_class(WriteWorlds)
+    bpy.utils.register_class(CopyTextureDirectory)
     bpy.utils.register_class(WriteGroups)
     bpy.utils.register_class(WriteEnvironment)
     bpy.utils.register_class(WriteMaterials)
@@ -2200,6 +2267,7 @@ def unregister():
     bpy.utils.unregister_class(CompositorToScene)
     bpy.utils.unregister_class(WriteConfig)
     bpy.utils.unregister_class(WriteWorlds)
+    bpy.utils.unregister_class(CopyTextureDirectory)
     bpy.utils.unregister_class(WriteGroups)
     bpy.utils.unregister_class(WriteEnvironment)
     bpy.utils.unregister_class(WriteMaterials)

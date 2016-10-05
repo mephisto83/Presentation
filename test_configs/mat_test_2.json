@@ -46,6 +46,7 @@
     "scenes": [
         {
             "name": "Scene",
+            "world": "World",
             "stage": {
                 "File": "D:\\Render\\Presenatation\\Test\\3\\untitled1.blend",
                 "Group": "Stage"
