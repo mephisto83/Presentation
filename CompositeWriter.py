@@ -20,6 +20,8 @@ def debugPrint(val=None):
 class CompositeWriter():
     node_count = 0
     forceRelative = False
+    directJoin = False
+    useName = False
     def readComp(self, scene):
         mat_value = {}
         mat = { "name" : scene.name, "value": mat_value }
@@ -190,10 +192,16 @@ class CompositeWriter():
                                 debugPrint("filepath  :  {}".format(filepath) )
                                 debugPrint("filepath basename  :  {}".format(os.path.basename(filepath)))
                                 head, tail = os.path.split(filepath)
+                                if self.useName:
+                                    head = image_data["name"]
                                 debugPrint("head {}".format(head))
                                 debugPrint("tail {}".format(tail))
-                                image_data["filepath_raw"] = os.path.join(self.relativePath, head)
-                                image_data["filepath"] = os.path.join(self.relativePath, head)
+                                if self.directJoin:
+                                    image_data["filepath_raw"] = self.relativePath + head
+                                    image_data["filepath"] = self.relativePath + head
+                                else:
+                                    image_data["filepath_raw"] = os.path.join(self.relativePath, head)
+                                    image_data["filepath"] = os.path.join(self.relativePath, head)
                         elif isinstance(mval, bpy.types.MovieClip):
                             debugPrint("found a movie")
                             movie_data = {}
@@ -205,8 +213,14 @@ class CompositeWriter():
                                 debugPrint("filepath  :  {}".format(filepath) )
                                 debugPrint("filepath basename  :  {}".format(os.path.basename(filepath)))
                                 head, tail = os.path.split(filepath)
-                                movie_data["filepath_raw"] = os.path.join(self.relativePath, head)
-                                movie_data["filepath"] = os.path.join(self.relativePath, head)
+                                if self.useName:
+                                    head = movie_data["name"]
+                                if self.directJoin:
+                                    movie_data["filepath_raw"] = self.relativePath + head
+                                    movie_data["filepath"] = self.relativePath + head
+                                else:
+                                    movie_data["filepath_raw"] = os.path.join(self.relativePath, head)
+                                    movie_data["filepath"] = os.path.join(self.relativePath, head)
                         elif isinstance(mval, bpy.types.ColorRamp):
                             color_ramp = {"data": [] }
                             node[member[0]] = color_ramp

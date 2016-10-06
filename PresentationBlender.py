@@ -107,6 +107,10 @@ class CompositorToBillboard(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
+            compositeWriter.forceRelative = True
+            compositeWriter.directJoin = True
+            compositeWriter.relativePath  = "{{environment_path}}"
+            compositeWriter.useName = True
             comp = compositeWriter.readComp(self.context.scene)
             res = { "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
@@ -331,6 +335,10 @@ class CompositorToScene(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
+            compositeWriter.forceRelative = True
+            compositeWriter.directJoin = True
+            compositeWriter.relativePath  = "{{environment_path}}"
+            compositeWriter.useName = True
             comp = compositeWriter.readComp(self.context.scene)
             res = { "materials" : {}, "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
@@ -499,7 +507,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "proskies" in scene:
             if scene["proskies"] == False:
                 return
-            else:
+            elif hasattr(bpy.context.scene.world,"pl_skies_settings"):
                 debugPrint("Found : Pro skies processing")
                 proskies_config = scene["proskies"]
                 if "skies" in proskies_config:
