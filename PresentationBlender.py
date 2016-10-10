@@ -466,6 +466,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.switchToScene(scene["name"])
             debugPrint("processing setings")
             self.processSettings(scene)
+            self.processCompositeParts(scene)
             self.processWorld(scene)
             self.prolightingProcess(scene)
             debugPrint("start proskies processing")
@@ -725,18 +726,23 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         f = open(custom_mat["file"], 'r')
                         filecontents = f.read()
                         composite_settings = json.loads(filecontents)
-                        if "groups" in composite_settings:
-                            debugPrint("define groups")
-                            compositeWriter.setupGroups(composite_settings["groups"], self.context, self.presentation_material_animation_points)
-                        if "materials" in composite_settings:
-                            for material in composite_settings["materials"]:
-                                compositeWriter.defineMaterial(material, self.presentation_material_animation_points)
-                                # self.defineMaterial(material)
-                        if "worlds" in composite_settings:
-                            debugPrint("define worlds")
-                            for world in composite_settings["worlds"]:
-                                compositeWriter.setupWorld(world, self.context, self.presentation_material_animation_points)
+                        
                             
+    def processCompositeParts(self, scene):
+        if "composite" in scene:
+            compositeWriter = CompositeWriter()
+            composite_settings = scene["composite"]
+            if "groups" in composite_settings:
+                debugPrint("define groups")
+                compositeWriter.setupGroups(composite_settings["groups"], self.context, self.presentation_material_animation_points)
+            if "materials" in composite_settings:
+                for material in composite_settings["materials"]:
+                    compositeWriter.defineMaterial(material, self.presentation_material_animation_points)
+                    # self.defineMaterial(material)
+            if "worlds" in composite_settings:
+                debugPrint("define worlds")
+                for world in composite_settings["worlds"]:
+                    compositeWriter.setupWorld(world, self.context, self.presentation_material_animation_points)
 
     def hasGroupByName(self, name):
         debugPrint("has group by name")
