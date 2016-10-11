@@ -52,7 +52,9 @@ class PresentationBlenderGUI(bpy.types.Panel):
         TheCol.separator()
         TheCol.prop(context.scene, "use_output_folder")
         TheCol.prop(context.scene, "presentation_scene_output_folder")
-        TheCol.operator("object.presentation_compositor_to_billboard", text="Billboard Composite")
+        TheCol.separator()
+        TheCol.prop(context.scene, "isbillboardcomposite")
+        #TheCol.operator("object.presentation_compositor_to_billboard", text="Billboard Composite")
         TheCol.operator("object.presentation_blender_from_scene", text="Scene")
         TheCol.operator("object.presentation_compositor", text="Composite")
         TheCol.operator("object.write_config", text="Config")
@@ -92,37 +94,38 @@ class PresentationBlenderFromScene(bpy.types.Operator):
             debugPrint(e)
         return {'FINISHED'}
 
-class CompositorToBillboard(bpy.types.Operator):
-    """Compositor to Billboard composite settings"""
-    bl_idname = "object.presentation_compositor_to_billboard"
-    bl_label = "Billboard Composite Settings"
-    bl_options = {'REGISTER', 'UNDO'}
+# class CompositorToBillboard(bpy.types.Operator):
+#     """Compositor to Billboard composite settings"""
+#     bl_idname = "object.presentation_compositor_to_billboard"
+#     bl_label = "Billboard Composite Settings"
+#     bl_options = {'REGISTER', 'UNDO'}
 
-    def execute(self, context):
-        scene = context.scene
-        cursor = scene.cursor_location
-        obj = scene.objects.active
-        self.context = context
+#     def execute(self, context):
+#         scene = context.scene
+#         cursor = scene.cursor_location
+#         obj = scene.objects.active
+#         self.context = context
         
-        try:
-            debugPrint("start")
-            compositeWriter = CompositeWriter()
-            compositeWriter.forceRelative = True
-            compositeWriter.directJoin = True
-            compositeWriter.relativePath  = "{{environment_path}}"
-            compositeWriter.useName = True
-            comp = compositeWriter.readComp(self.context.scene)
-            res = { "composite": comp }
-            text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
-            if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "billboardComposite.json"), 'w') as outfile:
-                    json.dump(res, outfile)
-            bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
-        except Exception as e:
-            debugPrint("didnt work out") 
-            debugPrint(e)
-        debugPrint("Executing")
-        return {'FINISHED'}
+#         try:
+#             debugPrint("start")
+#             compositeWriter = CompositeWriter()
+#             compositeWriter.forceRelative = True
+#             compositeWriter.directJoin = True
+#             compositeWriter.relativePath  = "{{environment_path}}"
+#             compositeWriter.useName = True
+#             comp = compositeWriter.readComp(self.context.scene)
+#             res = { "composite": comp }
+#             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
+#             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
+#                 with open(os.path.join(scene.presentation_scene_output_folder, "billboardComposite.json"), 'w') as outfile:
+#                     json.dump(res, outfile)
+#             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
+#         except Exception as e:
+#             debugPrint("didnt work out") 
+#             debugPrint(e)
+#         debugPrint("Executing")
+#         return {'FINISHED'}
+
 class WriteConfig(bpy.types.Operator):
     """Write configuration"""
     bl_idname = "object.write_config"
@@ -138,16 +141,16 @@ class WriteConfig(bpy.types.Operator):
         try:
             debugPrint("start")
             res = { 
+                "scene": "scene.json",  
+                "environment": "environment.json",
                 "composite": "composite.json", 
-                "environment": "environment.json", 
                 "composite.groups":"groups.json", 
                 "composite.materials": "materials.json",
                 "composite.worlds":"worlds.json", 
-                "scene": "scene.json", 
-                "billboardComposite": "billboardComposite.json",
-                "billboardComposite.groups": "groups.json",
-                "billboardComposite.materials": "materials.json",
-                "billboardComposite.worlds": "worlds.json" 
+                "billboardComposite": "billboard-composite.json",
+                "billboardComposite.groups": "billboard-groups.json",
+                "billboardComposite.materials": "billboard-materials.json",
+                "billboardComposite.worlds": "billboard-worlds.json" 
                 }
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 with open(os.path.join(scene.presentation_scene_output_folder, "config.json"), 'w') as outfile:
@@ -158,6 +161,7 @@ class WriteConfig(bpy.types.Operator):
         debugPrint("Executing")
 
         return {'FINISHED'}
+
 class CopyTextureDirectory(bpy.types.Operator):
     """Copy Textures to directory"""
     bl_idname = "object.copy_textures"
@@ -207,13 +211,18 @@ class WriteWorlds(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
-            compositeWriter.forceRelative = context.scene.presentation_name != None
-            compositeWriter.relativePath = context.scene.presentation_name
+            compositeWriter.forceRelative = True #context.scene.presentation_name != None
+            compositeWriter.relativePath = False #context.scene.presentation_name
+            compositeWriter.replaceWith = "//textures/"
+            compositeWriter.replaceText = "//textures\\"
             worlds = compositeWriter.readWorlds(bpy.data.worlds)
             res = { "worlds": worlds }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "worlds.json"), 'w') as outfile:
+                filename = "worlds.json"
+                if scene.isbillboardcomposite:
+                    filename = "billboard-worlds.json"
+                with open(os.path.join(scene.presentation_scene_output_folder, filename), 'w') as outfile:
                     json.dump(res, outfile)
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
         except Exception as e:
@@ -237,13 +246,18 @@ class WriteGroups(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
-            compositeWriter.forceRelative = context.scene.presentation_name != None
-            compositeWriter.relativePath = context.scene.presentation_name
+            compositeWriter.forceRelative = True #context.scene.presentation_name != None
+            compositeWriter.relativePath = False #context.scene.presentation_name
+            compositeWriter.replaceWith = "//textures/"
+            compositeWriter.replaceText = "//textures\\"
             groups = compositeWriter.readGroups(bpy.data.node_groups)
             res = { "groups": groups }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "groups.json"), 'w') as outfile:
+                filename = "groups.json"
+                if scene.isbillboardcomposite:
+                    filename = "billboard-groups.json"
+                with open(os.path.join(scene.presentation_scene_output_folder, filename), 'w') as outfile:
                     json.dump(res, outfile)
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
         except Exception as e:
@@ -266,13 +280,18 @@ class WriteMaterials(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
-            compositeWriter.forceRelative = context.scene.presentation_name != None
-            compositeWriter.relativePath = context.scene.presentation_name
+            compositeWriter.forceRelative = True #context.scene.presentation_name != None
+            compositeWriter.relativePath = False #context.scene.presentation_name
+            compositeWriter.replaceWith = "//textures/"
+            compositeWriter.replaceText = "//textures\\"
             materials = compositeWriter.readMats(bpy.data.materials)
             res = { "materials" : materials }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "materials.json"), 'w') as outfile:
+                filename = "materials.json"
+                if scene.isbillboardcomposite:
+                    filename = "billboard-materials.json"
+                with open(os.path.join(scene.presentation_scene_output_folder, filename), 'w') as outfile:
                     json.dump(res, outfile)
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
         except Exception as e:
@@ -312,7 +331,10 @@ class WriteEnvironment(bpy.types.Operator):
             res["composite_parameters"]["frame_count"] = scene.frame_end - scene.frame_start + 1
 
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "environment.json"), 'w') as outfile:
+                filename = "environment.json"
+                if scene.isbillboardcomposite:
+                    filename = "billboard-environment.json"
+                with open(os.path.join(scene.presentation_scene_output_folder, filename), 'w') as outfile:
                     json.dump(res, outfile)
         except Exception as e:
             debugPrint("didnt work out") 
@@ -335,15 +357,19 @@ class CompositorToScene(bpy.types.Operator):
         try:
             debugPrint("start")
             compositeWriter = CompositeWriter()
-            compositeWriter.forceRelative = True
-            compositeWriter.directJoin = True
-            compositeWriter.relativePath  = "{{environment_path}}"
-            compositeWriter.useName = True
+            compositeWriter.forceRelative = True #context.scene.presentation_name != None
+            compositeWriter.relativePath = False #context.scene.presentation_name
+            compositeWriter.replaceWith = "//"+context.scene.presentation_name+"/"
+            compositeWriter.replaceText = "//textures\\"
+            compositeWriter.replaceAnd = "//"+context.scene.presentation_name+"\\"
             comp = compositeWriter.readComp(self.context.scene)
-            res = { "materials" : {}, "composite": comp }
+            res = { "composite": comp }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-                with open(os.path.join(scene.presentation_scene_output_folder, "composite.json"), 'w') as outfile:
+                filename = "composite.json"
+                if scene.isbillboardcomposite:
+                    filename = "billboard-composite.json"
+                with open(os.path.join(scene.presentation_scene_output_folder, filename), 'w') as outfile:
                     json.dump(res, outfile)
             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
         except Exception as e:
@@ -1867,6 +1893,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.ops.object.empty_add(type="PLAIN_AXES")
             result["object"] = self.context.active_object
         elif scene_object_config["type"] == "image":
+            debugPrint("--------------------------------------------------------------------------------------")
+            debugPrint( scene_object_config["directory"])
             bpy.ops.import_image.to_plane(
                 files=[{"name":scene_object_config["fileName"], "name":scene_object_config["fileName"]}], 
                 directory= scene_object_config["directory"], 
@@ -1886,6 +1914,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "dim_height" in scene_object_config:
                 self.context.active_object.dimensions.y = scene_object_config["dim_height"]
                 bpy.ops.wm.redraw_timer(type='DRAW', iterations=1) 
+            debugPrint("end --------------------------------------------------------------------------------------")
                 
         elif scene_object_config["type"] == "lamp":
             light = "POINT"
@@ -2210,7 +2239,7 @@ def menu_func(self, context):
     self.layout.operator(PresentationBlenderMaterialCompositeReader.bl_idname)
     self.layout.operator(PresentationBlenderMatCompReader.bl_idname)
     self.layout.operator(PresentationBlenderFromScene.bl_idname)
-    self.layout.operator(CompositorToBillboard.bl_idname)
+    #self.layout.operator(CompositorToBillboard.bl_idname)
     self.layout.operator(CompositorToScene.bl_idname)
     self.layout.operator(WriteConfig.bl_idname)
     self.layout.operator(WriteWorlds.bl_idname)
@@ -2227,7 +2256,7 @@ def register():
     bpy.utils.register_class(PresentationBlenderMatCompReader)
     bpy.utils.register_class(PresentationBlenderGUI)
     bpy.utils.register_class(PresentationBlenderFromScene)
-    bpy.utils.register_class(CompositorToBillboard)
+    #bpy.utils.register_class(CompositorToBillboard)
     bpy.utils.register_class(CompositorToScene)
     bpy.utils.register_class(WriteConfig)
     bpy.utils.register_class(WriteWorlds)
@@ -2256,6 +2285,12 @@ def register():
         description="Use the scene output folder to store settings",
         default = False
         )
+    
+    bpy.types.Scene.isbillboardcomposite = bpy.props.BoolProperty(
+        name="Billboard Compositing",
+        description="Setting enabled for billboard compositing",
+        default = False
+        )
     bpy.types.VIEW3D_MT_object.append(menu_func)
 
     # handle the keymap
@@ -2274,10 +2309,11 @@ def unregister():
     del bpy.types.Scene.presentation_name
     del bpy.types.Scene.presentation_scene_output_folder
     del bpy.types.Scene.use_output_folder
+    del bpy.types.Scene.isbillboardcomposite
     bpy.utils.unregister_class(PresentationBlenderMatCompReader)
     bpy.utils.unregister_class(PresentationBlenderGUI)
     bpy.utils.unregister_class(PresentationBlenderFromScene)
-    bpy.utils.unregister_class(CompositorToBillboard)
+    #bpy.utils.unregister_class(CompositorToBillboard)
     bpy.utils.unregister_class(CompositorToScene)
     bpy.utils.unregister_class(WriteConfig)
     bpy.utils.unregister_class(WriteWorlds)
