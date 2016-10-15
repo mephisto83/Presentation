@@ -880,6 +880,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if material.name == name:
                 return True
         return False
+    def materialNameStartsWith(self, name):
+        for i in range(len(bpy.data.materials)):
+            if name.startswith(bpy.data.materials[i].name):
+                return bpy.data.materials[i]
+        return None
     def hasWorldsByName(self, name):
         for i in range(len(bpy.data.worlds)):
             environment = bpy.data.worlds[i]
@@ -1853,6 +1858,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             so = scene_objects[i]
             if so["name"] == obj["name"]:
                 res = self.createObjectWithConfig(so)
+                debugPrint("created object with config")
                 res["name"] = obj["name"]
                 return res
 
@@ -1892,7 +1898,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         elif scene_object_config["type"] == "empty":
             bpy.ops.object.empty_add(type="PLAIN_AXES")
             result["object"] = self.context.active_object
-        elif scene_object_config["type"] == "image":
+        elif scene_object_config["type"] == "image" or  scene_object_config["type"] == "movie" or  scene_object_config["type"] == "video":
             debugPrint("--------------------------------------------------------------------------------------")
             debugPrint( scene_object_config["directory"])
             bpy.ops.import_image.to_plane(
@@ -1904,6 +1910,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 filter_glob="", 
                 relative=False)
             result["object"] = self.context.active_object
+            debugPrint("active_object : {}".format(self.context.active_object))
             result["mesh"] = self.context.active_object.data
             if "fuzzy" in scene_object_config:
                 result["fuzzy"] = scene_object_config["fuzzy"]
@@ -1914,6 +1921,17 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "dim_height" in scene_object_config:
                 self.context.active_object.dimensions.y = scene_object_config["dim_height"]
                 bpy.ops.wm.redraw_timer(type='DRAW', iterations=1) 
+            properties = ["use_cyclic", "frame_offset"]
+            for prop in properties:
+                if prop in scene_object_config:
+                    movie_name = scene_object_config["fileName"]
+                    debugPrint("set movie name : {}".format(movie_name))
+                    if self.materialNameStartsWith(movie_name):
+                        debugPrint("has image movie")
+                        mat = self.materialNameStartsWith(movie_name)
+                        if mat:
+                            debugPrint("mat found")
+                            setattr(mat.node_tree.nodes["Image Texture"].image_user, prop, scene_object_config[prop])
             debugPrint("end --------------------------------------------------------------------------------------")
                 
         elif scene_object_config["type"] == "lamp":
@@ -1979,12 +1997,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 material = self.getMaterialByName(scene_object_config["material"])
                 debugPrint("append material " + scene_object_config["material"])
                 result["object"].data.materials.append(material)
-        
+                debugPrint("appended material")
         if "object" in result:
             result["object"].name = scene_object_config["name"]
 
         return result
-
+    
+    def hasImageMovie(self, movieName):
+        for key in bpy.data.images.keys():
+            if key == movieName:
+                return True
+        return False
+        
+    
+    
     def optimalFit(self, obj, h, w):
         debugPrint("optimal fit")
         obj.data.size = .01
