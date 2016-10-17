@@ -762,11 +762,17 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint("define groups")
                 compositeWriter.setupGroups(composite_settings["groups"], self.context, self.presentation_material_animation_points)
             if "materials" in composite_settings:
+                if "materials" in composite_settings["materials"]:
+                    debugPrint("material, setting one more level down, hopefully to a list/array")
+                    composite_settings["materials"] = composite_settings["materials"]["materials"]
                 for material in composite_settings["materials"]:
                     compositeWriter.defineMaterial(material, self.presentation_material_animation_points)
                     # self.defineMaterial(material)
             if "worlds" in composite_settings:
                 debugPrint("define worlds")
+                if "worlds" in composite_settings["worlds"]:
+                    debugPrint("world, setting one more level down, hopefully to a list/array")
+                    composite_settings["worlds"] = composite_settings["worlds"]["worlds"]
                 for world in composite_settings["worlds"]:
                     compositeWriter.setupWorld(world, self.context, self.presentation_material_animation_points)
 
@@ -1921,17 +1927,36 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "dim_height" in scene_object_config:
                 self.context.active_object.dimensions.y = scene_object_config["dim_height"]
                 bpy.ops.wm.redraw_timer(type='DRAW', iterations=1) 
-            properties = ["use_cyclic", "frame_offset"]
-            for prop in properties:
-                if prop in scene_object_config:
-                    movie_name = scene_object_config["fileName"]
-                    debugPrint("set movie name : {}".format(movie_name))
-                    if self.materialNameStartsWith(movie_name):
-                        debugPrint("has image movie")
-                        mat = self.materialNameStartsWith(movie_name)
-                        if mat:
-                            debugPrint("mat found")
-                            setattr(mat.node_tree.nodes["Image Texture"].image_user, prop, scene_object_config[prop])
+            properties = ["use_cyclic", "frame_duration", "frame_offset", "frame_start"]
+            if "settings" in scene_object_config:
+                settings_scene_object_config = scene_object_config["settings"]
+                if "composite" in settings_scene_object_config and settings_scene_object_config["composite"] and "materials" in settings_scene_object_config["composite"]:
+                    if settings_scene_object_config["composite"]["materials"]:
+                        compositewriter = CompositeWriter()
+                        # this all assumes. that the material will be unique, and used only once in the scene.
+                        for mat_custom in settings_scene_object_config["composite"]["materials"]:
+                            mat = compositewriter.defineMaterial(mat_custom, self.presentation_material_animation_points)
+                            self.context.active_object.data.materials.clear()
+                            self.context.active_object.data.materials.append(mat)
+                            if mat:
+                                nodes = compositewriter.getCreatedNodesOfType("ShaderNodeTexImage")
+                                for node in nodes:
+                                    debugPrint("a {} node was found ".format(node["type"]))
+                                    for prop in properties:
+                                        if prop in scene_object_config:
+                                            debugPrint("setting prop {} ".format(prop))
+                                            setattr(node["node"].image_user, prop, scene_object_config[prop])
+            else:
+                for prop in properties:
+                    if prop in scene_object_config:
+                        movie_name = scene_object_config["fileName"]
+                        debugPrint("set movie name : {}".format(movie_name))
+                        if self.materialNameStartsWith(movie_name):
+                            debugPrint("has image movie")
+                            mat = self.materialNameStartsWith(movie_name)
+                            if mat:
+                                debugPrint("mat found")
+                                setattr(mat.node_tree.nodes["Image Texture"].image_user, prop, scene_object_config[prop])
             debugPrint("end --------------------------------------------------------------------------------------")
                 
         elif scene_object_config["type"] == "lamp":

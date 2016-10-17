@@ -10,7 +10,7 @@ from types import *
 movie_propeties = ["name", "filepath","frame_start","frame_duration","frame_offset", "source",  "use_fake_user"]
 image_properties = ["name", "filepath", "filepath_raw", "source", "alpha_mode",  "use_fake_user"]
 composite_image_node_properties = [ "frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset"]
-validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type","color_space", "projection", "label"]
+validmembers = ["image","clip", "layer","frame_duration", "frame_start","use_cyclic","use_auto_refresh", "frame_offset", "node_tree","alpha","specular_alpha","raytrace_transparency","specular_shader","specular_intensity","specular_hardness","transparency_method","use_transparency","translucency","ambient","emit","use_specular_map","specular_color","diffuse_color", "halo","volume", "diffuse_shader", "tonemap_type","f_stop","source","bokeh","contrast","adaptation","correction","index","use_antialiasing","offset","size",  "use_min", "use_max", "max","min", "threshold_neighbor","use_zbuffer", "master_lift","intensity","blur_max", "highlights_lift","midtones_lift","use_variable_size","use_bokeh","shadows_lift","midtones_end","midtones_start","blue","green","red", "shadows_gain", "midtones_gain", "highlights_gain","use_curved", "master_gain","speed_min","speed_max", "factor", "samples", "master_gamma", "highlights_gamma", "midtones_gamma", "shadows_gamma","hue_interpolation","interpolation","use_gamma_correction","use_relative", "shadows_contrast","operation", "use_antialias_z", "midtones_contrast", "master_saturation", "highlights_saturation", "midtones_saturation", "shadows_saturation", "master_contrast","highlights_contrast", "gain", "gamma","lift", "mapping", "height", "width", "premul", "use_premultiply","fade","angle_offset","streaks", "threshold", "mix","color_ramp", "color_modulation", "iterations","quality", "glare_type","filter_type", "ray_length", "use_projector","sigma_color","sigma_space", "use_jitter", "use_fit", "x", "y","rotation", "mask_type", "filter_type", "use_relative", "size_x","color_mode", "size_y", "use_clamp", "color_hue", "color_saturation", "color_value", "use_alpha", "name", "zoom","spin", "angle", "distance", "center_y", "center_x","use_wrap","blend_type","color_space", "projection", "label","base_path"]
 
 debugmode = True
 def debugPrint(val=None):
@@ -23,6 +23,7 @@ class CompositeWriter():
     directJoin = False
     replaceAnd = False
     useName = False
+    created_node_list = []
     def readComp(self, scene):
         mat_value = {}
         mat = { "name" : scene.name, "value": mat_value }
@@ -312,7 +313,9 @@ class CompositeWriter():
                 # clear all nodes to start clean
                 for node in mat.node_tree.nodes:
                     mat.node_tree.nodes.remove(node)
-                self.defineNodeTree(mat.node_tree, custom_mat, presentation_material_animation_points) 
+                self.defineNodeTree(mat.node_tree, custom_mat, presentation_material_animation_points)
+            return mat
+        return None
 
     def doesMaterialExistAlready(self, name):
         for item in bpy.data.materials:
@@ -362,6 +365,7 @@ class CompositeWriter():
                 self.defineNodeTree(tree, custom_mat, presentation_material_animation_points)
     def setupWorld(self, world, context, presentation_material_animation_points):
         #composite_settings["groups"]
+        
         bpy.data.worlds.new(world["name"])
         newworld = bpy.data.worlds[world["name"]]
         debugPrint("newworld")
@@ -379,13 +383,28 @@ class CompositeWriter():
     
     def setupGroups(self, configs, context, presentation_material_animation_points):
         debugPrint("setup groups")
-        sortedConfigs = self.sortByDependencies(configs)
+        if "groups" in configs:
+            debugPrint("setting one more level down, hopefully to a list/array")
+            configs = configs["groups"]
+        else:
+            debugPrint("no group property found, this is good")
+            try:
+                debugPrint("{}".format(len(configs)))
+            except Exception as e:
+                debugPrint("couldnt find the len of config")
+        if len(configs) == 1:
+            sortedConfigs = configs
+            debugPrint("{}".format(configs))
+            debugPrint("only one config")
+        else:
+            sortedConfigs = self.sortByDependencies(configs)
         for group in sortedConfigs:
             debugPrint("setup group {}".format(group["name"]))
             self.setupGroup(group, context, presentation_material_animation_points)
+        debugPrint("groups are setup")
     def sortByDependencies(self, configs):
         res = []
-
+        debugPrint("sort by dependencies")
         for  i in range(len(configs)):
             for j in range(len(configs)):
                 config = configs[j]
@@ -452,7 +471,8 @@ class CompositeWriter():
         image_node.name = image_name
         debugPrint("composite image node properties")
         for node_prop in composite_image_node_properties:
-            setattr(newnode, node_prop, node[node_prop])
+            if node_prop in node:
+                setattr(newnode, node_prop, node[node_prop])
 
     def defineMovie(self, node_movie, newnode, node):
         movie_name = node_movie["name"]
@@ -464,7 +484,14 @@ class CompositeWriter():
             debugPrint("has movie {}".format(movie_name))
         newnode.clip = bpy.data.movieclips[movie_name]
         movie_node = newnode.clip
-        
+    def addCreatedNode(self, node, type):
+        self.created_node_list.append({"node": node, "type": type})
+    def getCreatedNodesOfType(self, type):
+        res = []
+        for i in self.created_node_list:
+            if i["type"] == type:
+                res.append(i)
+        return res    
     def defineNodeTree(self, node_tree, custom_mat, presentation_material_animation_points):
         debugPrint("create material")
         if "name" in custom_mat:
@@ -479,6 +506,7 @@ class CompositeWriter():
                     for node in node_definitions:
                         debugPrint("creating {}".format(node["_type"]))
                         newnode = node_tree.nodes.new(type=node["_type"])
+                        self.addCreatedNode(newnode, node["_type"])
                         if "location" in node:
                             newnode.location = node["location"]
                         debugPrint("created type")
