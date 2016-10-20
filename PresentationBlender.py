@@ -329,7 +329,7 @@ class WriteEnvironment(bpy.types.Operator):
             res["composite_parameters"]["start_frame"] = scene.frame_start
             res["composite_parameters"]["end_frame"] = scene.frame_end
             res["composite_parameters"]["frame_count"] = scene.frame_end - scene.frame_start + 1
-
+            res["world"] = scene.world.name
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 filename = "environment.json"
                 if scene.isbillboardcomposite:
