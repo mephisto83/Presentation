@@ -1,7 +1,12 @@
 
 bl_info = {
     "name": "Presentation Maker",
+    "description": "Blender projects can be generated with json files of a specific format.",
+    "author": "aporter",
+    "version": (0,0,1,0),
+    "blender": (2, 80, 0),
     "category": "Animation",
+    "location": "View3D"
 }
 
 # To support reload properly, try to access a package var, 
@@ -40,7 +45,7 @@ class PresentationBlenderGUI(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "TOOLS"
     bl_context = "objectmode"
-    bl_category = "Movie"
+    # bl_category = "Movie"
     bl_label = "Generate Presentation"
  
     def draw(self, context):
@@ -454,7 +459,6 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor_location
-        obj = scene.objects.active
         self.context = context
         settings = context.scene.presentation_settings
         self.relativeDirePath = self.fixPath(os.path.dirname(settings))
@@ -626,18 +630,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 running = True
         lastscene = bpy.data.scenes[0]
         for scene in scenes:
+            debugPrint("scene ----- ")
             bpy.ops.scene.new(type='NEW')
+            debugPrint("new scene made ")
             cloneScene = bpy.context.scene
+            debugPrint("setting scene name")
             cloneScene.name = scene["name"]
         if len([f for f in bpy.data.scenes if f.name == lastscene.name]) > 0:
+            debugPrint("switching to scene")
             self.switchToScene(lastscene.name)
+            debugPrint("deleting scene")
             bpy.ops.scene.delete()
 
     def switchToScene(self, name):
-        bpy.data.screens['Default'].scene = bpy.data.scenes[name]
-        bpy.context.screen.scene=bpy.data.scenes[name]
-        self.scene = bpy.context.screen.scene
-        
+        # 
+        try:
+            bpy.data.screens['Default'].scene = bpy.data.scenes[name]
+            bpy.context.screen.scene = bpy.data.scenes[name]
+            self.scene = bpy.context.screen.scene
+        except:
+            bpy.context.scene.name = name
+            self.scene = bpy.context.scene
     def processWorld(self, scene):
         if "world" in scene:
             debugPrint("set the world ")
@@ -645,7 +658,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if self.hasWorldsByName(worldName):
                 world = self.getWorldByName(worldName)
                 self.context.scene.world = world
-
+    def isCycles(self):
+        renderEngine = self.context.scene.render.engine
+        return renderEngine == "CYCLES"
+    def isEevee(self):
+        renderEngine = self.context.scene.render.engine
+        return renderEngine == "EEVEE"
     def processSettings(self, scene):
         debugPrint("Process settings")
         if "RenderEngine" in scene:
@@ -654,9 +672,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("set render engine")
             self.context.scene.render.engine = self.settings["RenderEngine"]
         
+
         if "Device" in self.settings:
             debugPrint("device in settings")
-            self.context.scene.cycles.device = self.settings["Device"]
+            if self.isCycles():
+                self.context.scene.cycles.device = self.settings["Device"]
         if "resolution_x" in self.settings:
             bpy.context.scene.render.resolution_x = float(self.settings["resolution_x"])
         else:
@@ -686,10 +706,19 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         bpy.context.scene.render.resolution_percentage = 100
         if "samples" in self.settings:
             debugPrint("samples in settings")
-            bpy.context.scene.cycles.samples = float(self.settings["samples"])
+            if self.isCycles():
+                bpy.context.scene.cycles.samples = float(self.settings["samples"])
+            elif self.isEevee():
+                bpy.context.scene.eevee.taa_render_samples = float(self.settings["samples"])
+
         else :
-            bpy.context.scene.cycles.samples = 200
-        bpy.context.scene.cycles.preview_samples = 0
+            default_samples  = 200
+            if self.isCycles():
+                bpy.context.scene.cycles.samples = default_samples
+            elif self.isEevee():
+                bpy.context.scene.eevee.taa_render_samples = default_samples
+        if self.isCycles():
+            bpy.context.scene.cycles.preview_samples = 0
 
         for _setting in RENDERSETTINGS:
             if _setting in self.settings and hasattr(bpy.context.scene.render, _setting):
@@ -698,8 +727,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if _setting in self.settings and hasattr(bpy.context.scene.render.image_settings, _setting):
                 setattr(bpy.context.scene.render.image_settings, _setting, self.settings[_setting])
         for _setting in CYCLESRENDERSETTINGS:
-            if _setting in self.settings and hasattr(bpy.context.scene.cycles, _setting):
-                setattr(bpy.context.scene.cycles, _setting, self.settings[_setting])
+            if self.isCycles():
+                if _setting in self.settings and hasattr(bpy.context.scene.cycles, _setting):
+                    setattr(bpy.context.scene.cycles, _setting, self.settings[_setting])
         
         if "FrameEnd" in self.settings:
             debugPrint("frameend in settings")
@@ -810,12 +840,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 else :
                     bpy.ops.object.select_all(action="DESELECT")
                     debugPrint("deselected all")
-                    root.children[i].select = True
+                    root.children[i].select_set(True)
                     debugPrint("select child root")
                     debugPrint(root.children[i].name)
                     # bpy.ops.object.duplicate_move()
                     temp = self.duplicateObject(self.context.scene,root.children[i].name, root.children[i], root)
-                    root.children[i].select = False
+                    root.children[i].select_set(False)
                     debugPrint(temp.name)
                     debugPrint("duplicated the object")
                     temp.parent = empty
@@ -850,7 +880,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         # Link new object to the given scene and select it
         debugPrint("link new object to the given scene and select it")
         scene.objects.link(ob_new)
-        ob_new.select = True
+        ob_new.select_set(True)
         self.context.scene.update()
         if len(copyobj.children) > 0:
             for i in range(len(copyobj.children)):
@@ -959,7 +989,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 bone_chain = bone_chains[j]
                 chain = chains[j]
                 if count == thresh:
-                    rig.pose.bones["bone.chain." + chain].rotation_quaternion[3] = 1
+                    # rig.pose.bones["bone.chain." + chain].rotation_quaternion[3] = 1
                     count = 0
                     thresh = thresh + 1
                 count = count + 1
@@ -1050,7 +1080,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                         bpy.ops.object.mode_set(mode='OBJECT')
                         bpy.ops.object.select_all(action='DESELECT') 
                         bpy.ops.object.mode_set(mode='POSE')       
-                        the_bone.select = True
+                        the_bone.select_set(True)
                         the_bone = rig.pose.bones["bone.chain." + ik_bone["connectTo"]].bone
                         armature.bones.active = the_bone
                         bpy.ops.pose.constraint_add(type='IK')
@@ -1071,7 +1101,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     debugPrint("Deselect all objects")
                     bpy.ops.object.select_all(action='DESELECT')
                     debugPrint("Deselected all objects")
-                    mdObj["object"].select = True
+                    mdObj["object"].select_set(True)
                     mdObj["object"].location = bone_chains[j].head + rig.location
                     debugPrint("Pose mode")
                     if "forceFit" in armatureConfig and armatureConfig["forceFit"] == "True":
@@ -1161,7 +1191,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 rig = obj["rig"]
                 debugPrint("got rig")
                 armature = obj["armature"]
-                rig.select = True
+                rig.select_set(True)
                 bpy.ops.object.mode_set(mode='POSE')       
                 the_bone = rig.pose.bones[obj["name"]].bone
                 armature.bones.active = the_bone
@@ -1327,7 +1357,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("target_obj")
             debugPrint(target)
             bpy.ops.object.select_all(action='DESELECT')
-            obj["object"].select = True
+            obj["object"].select_set(True)
+            # bpy.context.scene.objects.active = obj["object"]
             debugPrint("adding constraint")
             constraint = obj["object"].constraints.new(type='TRACK_TO')
             debugPrint("adding constraint")
@@ -1400,30 +1431,31 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 tempObject["object"].data.gpu_dof.keyframe_insert(data_path="fstop", frame=frame)
             if "use_high_quality" in gpu_dof:
                 tempObject["object"].data.gpu_dof.use_high_quality = gpu_dof["use_high_quality"]
-        if "cycles" in childConfig:
-            cycles = childConfig["cycles"]
-            if "aperture_type" in cycles:
-                tempObject["object"].data.cycles.aperture_type = cycles["aperture_type"]
-            if "aperture_size" in cycles:
-                tempObject["object"].data.cycles.aperture_size = cycles["aperture_size"]
-            if "aperture_size_anim" in cycles:
-                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_size", frame=frame)
-            if "aperture_fstop" in cycles:
-                tempObject["object"].data.cycles.aperture_fstop = cycles["aperture_fstop"]
-            if "aperture_fstop_anim" in cycles:
-                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_fstop", frame=frame)
-            if "aperture_blades" in cycles:
-                tempObject["object"].data.cycles.aperture_blades = cycles["aperture_blades"]
-            if "aperture_blades_anim" in cycles:
-                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_blades", frame=frame)
-            if "aperture_rotation" in cycles:
-                tempObject["object"].data.cycles.aperture_rotation = cycles["aperture_rotation"]
-            if "aperture_rotation_anim" in cycles:
-                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_rotation", frame=frame)
-            if "aperture_ratio" in cycles:
-                tempObject["object"].data.cycles.aperture_ratio = cycles["aperture_ratio"]
-            if "aperture_ratio_anim" in cycles:
-                tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_ratio", frame=frame)
+        if self.isCycles():
+            if "cycles" in childConfig:
+                cycles = childConfig["cycles"]
+                if "aperture_type" in cycles:
+                    tempObject["object"].data.cycles.aperture_type = cycles["aperture_type"]
+                if "aperture_size" in cycles:
+                    tempObject["object"].data.cycles.aperture_size = cycles["aperture_size"]
+                if "aperture_size_anim" in cycles:
+                    tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_size", frame=frame)
+                if "aperture_fstop" in cycles:
+                    tempObject["object"].data.cycles.aperture_fstop = cycles["aperture_fstop"]
+                if "aperture_fstop_anim" in cycles:
+                    tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_fstop", frame=frame)
+                if "aperture_blades" in cycles:
+                    tempObject["object"].data.cycles.aperture_blades = cycles["aperture_blades"]
+                if "aperture_blades_anim" in cycles:
+                    tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_blades", frame=frame)
+                if "aperture_rotation" in cycles:
+                    tempObject["object"].data.cycles.aperture_rotation = cycles["aperture_rotation"]
+                if "aperture_rotation_anim" in cycles:
+                    tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_rotation", frame=frame)
+                if "aperture_ratio" in cycles:
+                    tempObject["object"].data.cycles.aperture_ratio = cycles["aperture_ratio"]
+                if "aperture_ratio_anim" in cycles:
+                    tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_ratio", frame=frame)
         debugPrint("-======completed applying config====-")
 
     def limit_rotation(self, obj, config, keyframe, frame):
@@ -1688,7 +1720,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         raise ValueError("cannot find get keyframe_point")
 
     def setKeyFrameProperties(self, obj, config, data_path, property, frame):
-        fcurve = self.getFCurve(obj, data_path, property)
+        # fcurve = self.getFCurve(obj, data_path, property)
         p_keyframe_point = property + "_keyframe_point"
         if p_keyframe_point in config:
             keyframe_config = config[p_keyframe_point]
@@ -1875,7 +1907,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint(scene_object_config["type"])
             result["type"] = scene_object_config["type"]
         if(scene_object_config["type"] == "cube"):
-            bpy.ops.mesh.primitive_cube_add(radius=1, location=(0, 0, 0))
+            bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))
             result["object"] = self.context.active_object
             result["mesh"] = self.context.active_object.data
         elif scene_object_config["type"] == "custom":
@@ -1898,7 +1930,11 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             result["object"] = self.context.active_object
             result["object"].data.clip_end = 10000
         elif scene_object_config["type"] == "plane":
-            bpy.ops.mesh.primitive_plane_add(radius=1,location=(0,0,0))
+            try:
+                bpy.ops.mesh.primitive_plane_add(radius=1,location=(0,0,0))
+            except: 
+                bpy.ops.mesh.primitive_plane_add(size=1,location=(0,0,0))
+            
             result["object"] = self.context.active_object
             result["mesh"] = self.context.active_object.data
         elif scene_object_config["type"] == "empty":
@@ -1963,7 +1999,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             light = "POINT"
             if "light" in scene_object_config:
                 light = scene_object_config["light"]
-            bpy.ops.object.lamp_add(type=light)
+            if bpy.ops.object.light_add:
+                bpy.ops.object.light_add(type=light)
+            else:
+                bpy.ops.object.lamp_add(type=light)
             result["object"] = self.context.active_object
             if "strength" in scene_object_config:
                 strength = scene_object_config["strength"]
@@ -2199,17 +2238,18 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint(point)
                 self.deselectAll()
                 hookObj = bpy.data.objects[hookConfig["hook"]]
-                hookObj.select= True
-                objectdata.select = True
+                hookObj.select_set(True)
+                # objectdata.select = True
+                # bpy.context.scene.objects.active = obj["object"]
                 bpy.context.scene.objects.active = objectdata
                 debugPrint("object data selected ")
-                point.select = True
-                objectdata.select = True
+                point.select_set(True)
+                objectdata.select_set(True)
                 bpy.ops.object.mode_set(mode='EDIT') 
                                 #select point
                 debugPrint("assigning")
                 bpy.ops.object.hook_assign(modifier=hookname)
-                point.select = False
+                point.select_set(False)
                 bpy.ops.object.mode_set(mode='OBJECT') 
                 debugPrint("assigning")
                 

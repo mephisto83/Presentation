@@ -11,15 +11,15 @@ def writeZip(files, to):
     with zipfile.ZipFile(to, 'x') as myzip:
         for file in files:
             myzip.write(file)
-blender_VERSION = "2.78"
+blender_VERSION = "2.79"
 ver = "001"
-install_lights = True;
+install_lights = True
 if sys.platform == "win32":
     basepath = os.getcwd() #os.path.dirname(os.path.realpath(__file__))
-    blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\2.77" #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
+    blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\" + blender_VERSION #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
 else:
     basepath =  "/" + os.path.join("home","ubuntu")# os.path.expanduser("~")
-    blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", "2.77")
+    blender_version_path = os.path.join(os.path.expanduser("~"),".config","blender", blender_VERSION)
     
 print("Install presentation addons")
 # location = "D:\\dev\\Python\\Blender\\Presentation\\PresenationBlender.py"

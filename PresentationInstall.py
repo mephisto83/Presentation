@@ -7,9 +7,29 @@ import bpy
 import zipfile
 import sys
 import shutil, errno
-blender_VERSION = "2.78"
+
+argv = sys.argv
+try:
+    index = argv.index("--") + 1
+except:
+    index = len(argv)
+
+argv = argv[index:]
+print(argv)
+blendPath = False
+if(argv[0]):
+	blendPath = argv[0]
+
+blender_VERSION = "2.79"
+if(argv[1]):
+	blender_VERSION = argv[1]
+
 ver = "001"
-install_lights = True;
+use_resources = False
+use_rail = False
+use_ffmpeg = False
+install_lights = False
+use_uber = False
 if sys.platform == "win32":
     basepath = os.getcwd() #os.path.dirname(os.path.realpath(__file__))
     blender_version_path = "C:\\Users\\mephisto\\AppData\\Roaming\\Blender Foundation\Blender\\"+blender_VERSION #os.path.join("blender-2.77a-linux-glibc211-x86_64", "2.77")
@@ -81,10 +101,14 @@ def copyanything(src, dst):
             shutil.copy(src, dst)
         else: raise
 
-unzipToLocation(uber_path_file, uber_path_target)
-unzipToLocation(blender_resources_path, blender_resources_path_target)
-copyanything(rail_resources_path, rail_resources_target_path)
-copyanything(ffmpeg_path, ffmpeg_path_target)
+if use_uber:
+    unzipToLocation(uber_path_file, uber_path_target)
+if use_resources:
+    unzipToLocation(blender_resources_path, blender_resources_path_target)
+if use_rail:
+    copyanything(rail_resources_path, rail_resources_target_path)
+if use_ffmpeg:
+    copyanything(ffmpeg_path, ffmpeg_path_target)
 
 if install_lights:
     unzipToLocation(hdriZip, pro_skies_hdri_location)
