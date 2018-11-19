@@ -1,3 +1,16 @@
+
+bl_info = {
+    "name": "Composite Writer",
+    "description": "Blender projects can be generated with json files of a specific format.",
+    "category": "Uber",
+    "author": "aporter",
+    "version": (0,0,1,0),
+    "blender": (2, 80, 0),
+    "category": "Animation",
+    "location": "View3D"
+}
+
+
 import bpy
 import bpy.types
 import inspect
