@@ -29,7 +29,7 @@ import bpy.types
 import inspect
 import shutil, errno
 from types import *
-from Constants import _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
+from Constants import SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
@@ -210,7 +210,7 @@ class WriteWorlds(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor_location
-        obj = scene.objects.active
+        obj = context.active_object
         self.context = context
         
         try:
@@ -279,7 +279,7 @@ class WriteMaterials(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor_location
-        obj = scene.objects.active
+        obj = context.active_object
         self.context = context
         
         try:
@@ -356,7 +356,7 @@ class CompositorToScene(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor_location
-        obj = scene.objects.active
+        obj = context.active_object
         self.context = context
         
         try:
@@ -396,7 +396,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
     def execute(self, context):
         scene = context.scene
         cursor = scene.cursor_location
-        obj = scene.objects.active
+        obj = context.active_object
         self.context = context
         # settings = context.scene.presentation_settings
         debugPrint(context.scene.presentation_settings)
@@ -1241,7 +1241,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         #bpy.ops.object.select_all(action='DESELECT')
         #a["object"].select = True
         #b["object"].select = True
-        #bpy.context.scene.objects.active = a["object"]
+        #bpy.context.context.active_object = a["object"]
         #bpy.ops.object.parent_set()
     def deselectAll(self):
         debugPrint("object mode")
@@ -1431,6 +1431,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 tempObject["object"].data.gpu_dof.keyframe_insert(data_path="fstop", frame=frame)
             if "use_high_quality" in gpu_dof:
                 tempObject["object"].data.gpu_dof.use_high_quality = gpu_dof["use_high_quality"]
+        if "materialConfig" in childConfig:
+            self.setupMaterial(tempObject["object"], childConfig["materialConfig"])
         if self.isCycles():
             if "cycles" in childConfig:
                 cycles = childConfig["cycles"]
@@ -1457,6 +1459,115 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 if "aperture_ratio_anim" in cycles:
                     tempObject["object"].data.cycles.keyframe_insert(data_path="aperture_ratio", frame=frame)
         debugPrint("-======completed applying config====-")
+    def setupMaterial(self, obj, config):
+        debugPrint("setting up material for object")
+        material = self.getMaterialByName(config["name"])
+        if not material:
+            material = self.buildMaterial(config)
+        obj.data.materials.clear()
+        obj.data.materials.append(material)
+
+    def buildMaterial(self, config, material = None, parentInput = None):
+        debugPrint("build material")
+        if material == None:
+            # Create a new material
+            material = bpy.data.materials.new(name=config["name"])
+            material.use_nodes = True
+
+            # Remove default
+            count = len(material.node_tree.nodes)
+            for i in range(count):
+                material.node_tree.nodes.remove(material.node_tree.nodes[0])
+
+        type_config = config["type"]
+        if type_config == SHADER_OUTPUT_MATERIAL:
+            self.buildShaderOutputMaterial(config, material)
+        elif type_config == SHADER_EMISSION:
+            self.buildShaderEmission(config, material, parentInput)
+        elif type_config == SHADER_MIX_RGB:
+            self.buildShaderMixRGB(config, material, parentInput)
+        elif type_config == SHADER_NODE_VALUE:
+            self.buildShaderNodeValue(config, material, parentInput)
+        elif type_config == SHADER_NODE_MIX:
+            self.buildShaderNodeMix(config, material , parentInput)
+        elif type_config == SHADER_NODE_DIFFUSE:
+            self.builderShaderNodeDiffuse(config, material, parentInput)
+        return material
+    def buildShaderOutputMaterial(self, config, material):
+        node = material.node_tree.nodes.new(SHADER_OUTPUT_MATERIAL)
+        self.buildMaterial(config["surface"], material, node.inputs['Surface'])
+    
+    def buildShaderNodeMix(self, config ,material , parentInput = None):
+        node = material.node_tree.nodes.new(SHADER_NODE_MIX)
+        if parentInput != None:
+            material.node_tree.links.new(parentInput, node.outputs[0])
+
+        if "factor" in config:
+            self.buildMaterial(config["factor"], material, node.inputs[0])
+        if "input1" in config:
+            self.buildMaterial(config["input1"], material, node.inputs[1])
+        if "input2" in config:
+            self.buildMaterial(config["input2"], material, node.inputs[2])
+
+    def builderShaderNodeDiffuse(self, config, material ,parentInput):
+        node = material.node_tree.nodes.new(SHADER_NODE_DIFFUSE)
+
+        if parentInput != None:
+            material.node_tree.links.new(parentInput, node.outputs[0])
+
+        if "color" in config:
+            self.buildMaterial(config["color"], material, node.inputs[0])
+        if "roughness" in config:
+            self.buildMaterial(config["roughness"], material, node.inputs[1])
+        if "normal" in config:
+            self.buildMaterial(config["normal"], material, node.inputs[2])
+
+    def buildShaderEmission(self, config, material, parentInput = None):
+        node = material.node_tree.nodes.new(SHADER_EMISSION)
+
+        if parentInput != None:
+            material.node_tree.links.new(parentInput, node.outputs[0])
+
+        if "color" in config:
+            self.buildMaterial(config["color"], material, node.inputs['Color'])
+
+    def buildShaderMixRGB(self, config, material, parentInput = None):
+        node = material.node_tree.nodes.new(SHADER_MIX_RGB)
+
+        if parentInput != None:
+            material.node_tree.links.new(parentInput, node.outputs[0])
+        node.inputs[1].default_value = config["color1"]
+        if "color2" not in config:
+            node.inputs[2].default_value = config["color1"]
+        else:
+            node.inputs[2].default_value = config["color2"]
+
+    def buildShaderNodeValue(self, config, material, parentInput = None):
+        node = material.node_tree.nodes.new(SHADER_NODE_VALUE)
+
+        if parentInput != None:
+            material.node_tree.links.new(parentInput, node.outputs[0])
+        node.outputs[0].default_value = config["value"]
+
+        _put = node.outputs[0]
+        _path = 'default_value'
+        _property = "value"
+        self.setupShaderNodeAnimation(_put, _path, _property, config)
+
+    def setupShaderNodeAnimation(self, _put, _path, _property, config):
+        if "animation" in config:
+            debugPrint("setup shader node animation")
+            for a in range(len(config["animation"])):
+                anim = config["animation"][a]
+                org_frame = self.context.scene.frame_current
+                if "frame" in anim:
+                    self.context.scene.frame_current = anim["frame"]
+                    if "default_value" == _path:
+                        _put.default_value = anim[_property]
+                    _put.keyframe_insert(data_path=_path, frame=anim["frame"] )
+                    self.context.scene.frame_current = org_frame
+                else:
+                    raise ValueError("no frame in animation")
 
     def limit_rotation(self, obj, config, keyframe, frame):
         debugPrint("limit rotation")
@@ -1790,7 +1901,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     
     def searchForObject(self, name, root):
         if root == None:
-            objects = self.context.scene.obects
+            objects = self.context.scene.objects
         if name.find("#") == -1:
             obj_name = name.split("#")[0]
             if root.name == obj_name:

@@ -51,6 +51,13 @@ for ls in IMAGE_SETTINGS:
 for crs in CYCLESRENDERSETTINGS:
     BLENDER_SETTINGS.append({crs: "cycles."+crs})
 
+SHADER_EMISSION = "ShaderNodeEmission"
+SHADER_OUTPUT_MATERIAL = "ShaderNodeOutputMaterial"
+SHADER_MIX_RGB = "ShaderNodeMixRGB"
+SHADER_NODE_VALUE = "ShaderNodeValue"
+SHADER_NODE_MIX = "ShaderNodeMixShader"
+SHADER_NODE_DIFFUSE = "ShaderNodeBsdfDiffuse"
+        
 DEFAULT_ENVIRONMENT = {
     "id": "TestScene_3",
     "name": "TestScene_3",
