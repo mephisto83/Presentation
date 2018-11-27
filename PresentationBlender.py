@@ -1410,6 +1410,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         debugPrint("----------track to-------------")
         if "track_to" in childConfig:
             self.track_to(tempObject, childConfig["track_to"], True, frame)
+        if "ortho_scale" in childConfig:
+            tempObject["object"].data.ortho_scale  = float(childConfig["ortho_scale"])
+            tempObject["object"].data.keyframe_insert(data_path="ortho_scale", frame=frame)
         debugPrint("----------limit rotation-------------")
         if "limit_rotation" in childConfig:
             self.limit_rotation(tempObject, childConfig["limit_rotation"], True, frame)
@@ -2039,7 +2042,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         elif scene_object_config["type"] == "camera":
             bpy.ops.object.camera_add()
             result["object"] = self.context.active_object
-            result["object"].data.clip_end = 10000
+            result["object"].data.clip_end = 10000            
+            if "camera_type" in scene_object_config:
+                result["object"].data.type = scene_object_config["camera_type"]
         elif scene_object_config["type"] == "plane":
             try:
                 bpy.ops.mesh.primitive_plane_add(radius=1,location=(0,0,0))
