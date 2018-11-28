@@ -57,7 +57,9 @@ SHADER_MIX_RGB = "ShaderNodeMixRGB"
 SHADER_NODE_VALUE = "ShaderNodeValue"
 SHADER_NODE_MIX = "ShaderNodeMixShader"
 SHADER_NODE_DIFFUSE = "ShaderNodeBsdfDiffuse"
-        
+SHADER_WORLD_NODE_OUTPUT = "ShaderNodeOutputWorld"
+SHADER_NODE_BACKGROUND = "ShaderNodeBackground"
+
 DEFAULT_ENVIRONMENT = {
     "id": "TestScene_3",
     "name": "TestScene_3",

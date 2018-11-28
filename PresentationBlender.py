@@ -29,7 +29,7 @@ import bpy.types
 import inspect
 import shutil, errno
 from types import *
-from Constants import SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
+from Constants import SHADER_NODE_BACKGROUND, SHADER_WORLD_NODE_OUTPUT, SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
@@ -497,6 +497,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("processing setings")
             self.processSettings(scene)
             self.processCompositeParts(scene)
+            self.setupWorld(scene)
             self.processWorld(scene)
             self.prolightingProcess(scene)
             debugPrint("start proskies processing")
@@ -651,6 +652,23 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         except:
             bpy.context.scene.name = name
             self.scene = bpy.context.scene
+    def setupWorld(self, scene):
+        debugPrint("--- setup world ---")
+        if "world-config" in scene:
+            world = scene["world-config"]
+            bpy.data.worlds.new(world["name"])
+            newworld = bpy.data.worlds[world["name"]]
+            debugPrint("newworld")
+            debugPrint(world["name"])
+            debugPrint(newworld)
+            newworld.use_nodes = True
+            
+            for node in newworld.node_tree.nodes:
+                debugPrint("Remove node")
+                newworld.node_tree.nodes.remove(node)
+            debugPrint("nodes removed ---")
+            self.buildMaterial(world["config"], newworld)
+
     def processWorld(self, scene):
         if "world" in scene:
             debugPrint("set the world ")
@@ -1495,10 +1513,15 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildShaderNodeMix(config, material , parentInput)
         elif type_config == SHADER_NODE_DIFFUSE:
             self.builderShaderNodeDiffuse(config, material, parentInput)
+        elif type_config == SHADER_WORLD_NODE_OUTPUT:
+            self.buildShaderWorldNodeOutput(config, material)
+        elif type_config == SHADER_NODE_BACKGROUND:
+            self.buildShaderNodeBackground(config, material, parentInput)
         return material
+    
     def buildShaderOutputMaterial(self, config, material):
         node = material.node_tree.nodes.new(SHADER_OUTPUT_MATERIAL)
-        self.buildMaterial(config["surface"], material, node.inputs['Surface'])
+        self.buildMaterial(config["surface"], material, node.inputs[0])
     
     def buildShaderNodeMix(self, config ,material , parentInput = None):
         node = material.node_tree.nodes.new(SHADER_NODE_MIX)
@@ -1511,6 +1534,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildMaterial(config["input1"], material, node.inputs[1])
         if "input2" in config:
             self.buildMaterial(config["input2"], material, node.inputs[2])
+
+    def buildShaderWorldNodeOutput(self, config, material):
+        node = material.node_tree.nodes.new(SHADER_WORLD_NODE_OUTPUT)
+        self.buildMaterial(config["surface"], material, node.inputs['Surface'])
+
+    def buildShaderNodeBackground(self, config, material, parentInput):
+        debugPrint(material)
+        debugPrint(material.node_tree)
+        node = material.node_tree.nodes.new(SHADER_NODE_BACKGROUND)
+
+        if parentInput != None:
+            debugPrint("linking to parent input")
+            material.node_tree.links.new(parentInput, node.outputs[0])
+
+        if "color" in config:
+            debugPrint("connecting color")
+            self.buildMaterial(config["color"], material, node.inputs[0])
+        
+        if "strength" in config:
+            debugPrint("connecting strength")
+            self.buildMaterial(config["strength"], material, node.inputs[1])
 
     def builderShaderNodeDiffuse(self, config, material ,parentInput):
         node = material.node_tree.nodes.new(SHADER_NODE_DIFFUSE)
@@ -2044,7 +2088,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             result["object"] = self.context.active_object
             result["object"].data.clip_end = 10000            
             if "camera_type" in scene_object_config:
-                result["object"].data.type = scene_object_config["camera_type"]
+                if scene_object_config["camera_type"]:
+                    result["object"].data.type = scene_object_config["camera_type"]
         elif scene_object_config["type"] == "plane":
             try:
                 bpy.ops.mesh.primitive_plane_add(radius=1,location=(0,0,0))
