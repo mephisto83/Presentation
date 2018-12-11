@@ -27,6 +27,7 @@ import os.path
 import json
 import bpy.types
 import inspect
+import bmesh
 import shutil, errno
 from types import *
 from Constants import SHADER_NODE_BACKGROUND, SHADER_WORLD_NODE_OUTPUT, SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
@@ -2155,7 +2156,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                                 debugPrint("mat found")
                                 setattr(mat.node_tree.nodes["Image Texture"].image_user, prop, scene_object_config[prop])
             debugPrint("end --------------------------------------------------------------------------------------")
-                
+        elif scene_object_config["type"] == "ngon":
+            result["object"] = self.createNgon(scene_object_config)  
         elif scene_object_config["type"] == "lamp":
             light = "POINT"
             if "light" in scene_object_config:
@@ -2270,6 +2272,32 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             print(newsize)
         obj.data.size = newsize      
         # print("size {}, score {}".format(prev_low_size, prev_low_score))  
+    def createNgon(self, config):
+        verts = config["vertices"]
+        bm = bmesh.new()
+        for v in verts:
+            bm.verts.new((v["x"], v["y"], v["z"]))
+        bm.faces.new(bm.verts)
+        bm.normal_update()
+
+        me = bpy.data.meshes.new("")
+        bm.to_mesh(me)
+
+        ob = bpy.data.objects.new("", me)
+        bpy.context.scene.collection.objects.link(ob)
+        bpy.context.scene.update()
+        if "extrude" in config:
+            # Go to edit mode, face selection mode and select all faces
+            bpy.ops.object.mode_set( mode   = 'EDIT'   )
+            bpy.ops.mesh.select_mode( type  = 'FACE'   )
+            bpy.ops.mesh.select_all( action = 'SELECT' )
+
+            bpy.ops.mesh.extrude_region_move(
+                TRANSFORM_OT_translate={"value":(config["extrude"]["x"], config["extrude"]["y"], config["extrude"]["z"])}
+            )
+
+            bpy.ops.object.mode_set( mode = 'OBJECT' )
+        return ob
     def calcScore(self, obj, h, w):
         bpy.ops.wm.redraw_timer(type='DRAW', iterations=1) 
         _h = obj.dimensions[0]
