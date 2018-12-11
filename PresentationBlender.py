@@ -2299,7 +2299,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         curvedata = bpy.data.curves.new(name=curvename, type='CURVE') 
         objectdata = bpy.data.objects.new(curvename, curvedata)  
         objectdata.location = (x,y,z) #object origin  
-        bpy.context.scene.objects.link(objectdata)   
+        # bpy.context.scene.objects.link(objectdata)   
+        bpy.context.scene.collection.objects.link(objectdata) # 2.80
         
         # Set path data
         curvedata.dimensions = '3D'
