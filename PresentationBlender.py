@@ -284,7 +284,7 @@ class WriteMaterials(bpy.types.Operator):
         self.context = context
         
         try:
-            debugPrint("start")
+            debugPrint("start write materials")
             compositeWriter = CompositeWriter()
             compositeWriter.forceRelative = True #context.scene.presentation_name != None
             compositeWriter.relativePath = False #context.scene.presentation_name
