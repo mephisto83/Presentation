@@ -290,8 +290,10 @@ class WriteMaterials(bpy.types.Operator):
             compositeWriter.relativePath = False #context.scene.presentation_name
             compositeWriter.replaceWith = "//textures/"
             compositeWriter.replaceText = "//textures\\"
+            matLib = {}
             materials = compositeWriter.readMats(bpy.data.materials)
-            res = { "materials" : materials }
+            groups = compositeWriter.readGroups(bpy.data.node_groups)
+            res = { "materials" : materials, "library": groups }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 filename = "materials.json"

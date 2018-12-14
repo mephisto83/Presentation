@@ -44,19 +44,18 @@ class CompositeWriter():
         
         if scene.node_tree == None:
             mat["blender_render"] = True
-        self.readObjectToDictionary(scene, mat, mat_value)
+        mat_value = self.readObjectToDictionary(scene)
         return mat_value
     def readComps(self, scenes):
         _scenes = []
         for _scene in scenes:
-            mat_value = {}
-            mat = { "name" : _scene.name, "value": mat_value }
-            _scenes.append(mat)
-            
+            mat = {}
             if _scene.node_tree == None:
                 mat["blender_render"] = True
             # if material.node_tree != None:
-            self.readObjectToDictionary(_scene, mat, mat_value)
+            mat_value = self.readObjectToDictionary(_scene)
+            mat = { "name" : _scene.name, "value": mat_value }
+            _scenes.append(mat)
             t = [f for f in _scenes if f["name"] == _scene.name]
             if len(t) == 0:
                 _scenes.append(mat)
@@ -65,132 +64,203 @@ class CompositeWriter():
     def readMats(self, _materials):
         materials = []
         for material in _materials:
-            mat_value = {}
-            mat = { "name" : material.name, "value": mat_value }
-            materials.append(mat)
-            
-            if material.node_tree == None:
-                mat["blender_render"] = True
-            # if material.node_tree != None:
-            self.readObjectToDictionary(material, mat, mat_value)
-            t = [f for f in materials if f["name"] == material.name]
-            if len(t) == 0:
+            if material.node_tree != None:
+                mat_value = self.readObjectToDictionary(material)
+                mat = { "name" : material.name, "value": mat_value }
                 materials.append(mat)
+            # t = [f for f in materials if f["name"] == material.name]
+            # if len(t) == 0:
+            #     materials.append(mat)
         return materials
 
     def readGroups(self, nodeGroups):
         groups = []
         debugPrint("read groups")
         for group in nodeGroups:
-            mat_value = {}
+            mat_value = self.readGroupToDictionary(group)
             mat = { "name": group.name, "value": mat_value }
             groups.append(mat)
-
-            self.readGroupToDictionary(group, mat, mat_value)
-            t = [f for f in groups if f["name"] == group.name]
-            if len(t) == 0:
-                groups.append(mat)
         return groups
     
     def readWorlds(self, worlds):
         _worlds = []
         for world in worlds:
             mat_value = {}
+            mat_value = self.readObjectToDictionary(world)
             mat = { "name": world.name, "value": mat_value }
             _worlds.append(mat)
             debugPrint("read worlds")
             debugPrint(world)
-            self.readObjectToDictionary(world, mat, mat_value)
+            
             t = [f for f in _worlds if f["name"] == world.name]
             if len(t) == 0:
                 _worlds.append(mat)
         return _worlds
 
-    def readGroupToDictionary(self, group_tree, mat, mat_value):
-        nodes = []
-        nodes_ref = []
-        links = []
-        debugPrint("read group to dictionary")
-        mat_value["nodes"] = nodes
-        mat_value["links"] = links
-        for _node in group_tree.nodes:
-            self.processNode(_node, nodes, nodes_ref, links, group_tree, mat, mat_value)
-        for _link in group_tree.links:
-            self.processLinks(_link, nodes, nodes_ref, links, group_tree, mat, mat_value)
+    # def readGroupToDictionary(self, group_tree, mat, mat_value):
+    #     nodes = []
+    #     nodes_ref = []
+    #     links = []
+    #     debugPrint("read group to dictionary")
+    #     mat_value["nodes"] = nodes
+    #     mat_value["links"] = links
+    #     for _node in group_tree.nodes:
+    #         self.processNode(_node, nodes, nodes_ref, links, group_tree, mat, mat_value)
+    #     for _link in group_tree.links:
+    #         self.processLinks(_link, nodes, nodes_ref, links, group_tree, mat, mat_value)
+    def readNodeInfo(self, _node, id, locallib):
+        nodeinfo = {}
+        nodeinfo["id"] = id
+        locallib[id] = _node
+        nodeinfo["type"] = _node.type
+        if hasattr(_node, 'location'):
+            nodeinfo["location"] = {
+                "x": _node.location[0],
+                "y": _node.location[1]
+            }
+        if hasattr(_node, 'dimensions'):
+            nodeinfo["dimensions"] = {
+                "width": _node.dimensions[0],
+                "height":_node.dimensions[1]
+            }
+        try:
+            if hasattr(_node, 'node_tree'):
+                nodeinfo["name"] = _node.node_tree.name
+            else:
+                nodeinfo["name"] = _node.name
+        except Exception as e:
+            debugPrint(e)
+            debugPrint("use node name")
+            nodeinfo["name"] = _node.name
+        nodeinfo["inputs"] = []
+        nodeinfo["outputs"] = []
+        debugPrint("reading node inputs")
+        nodeinfo["options"] = {}
+        if hasattr(_node, 'operation'):
+            nodeinfo["options"] = _node.operation
+        if hasattr(_node, 'use_clamp'):
+            nodeinfo["use_clamp"] = _node.use_clamp
+        if hasattr(_node, 'invert'):
+            nodeinfo["invert"] = _node.invert
+        if hasattr(_node, 'blend_type'):
+            nodeinfo["blend_type"] = _node.blend_type
+        for node_input in _node.inputs:
+            ni = {}
+            nodeinfo["inputs"].append(ni)
+            ni["name"] = node_input.name
+            ni["type"] = node_input.type
 
-    def readObjectToDictionary(self, material, mat, mat_value):
-        # if material.node_tree == None:
-        #     mat["blender_render"] = True
-        #     members = inspect.getmembers(material)
-        #     for member in members:
-        #         mval = member[1]
-        #         if isinstance(member[1], int) or isinstance(member[1], float) or isinstance(member[1], bool):
-        #             mat_value[member[0]] = member[1]
-        #         elif isinstance(member[1], mathutils.Color):
-        #             mat_value[member[0]] = [f for f in member[1]]
-        #         else: # isinstance(mval, bpy.types.MaterialHalo):
-        #             mat_value[member[0]] = self.packProperties(member[1])
+            try:
+                if hasattr(node_input, 'default_value'):
+                    default_value = node_input.default_value
+                    if node_input.type == 'RGBA':
+                        default_value = [default_value[0],default_value[2],default_value[2],default_value[3]]
+                    elif node_input.type == 'VECTOR':
+                        default_value = [default_value[0],default_value[2],default_value[2]]
+                    ni["default_value"] = default_value
+            except Exception as e:
+                debugPrint(e)
+        debugPrint("reading node outputs")
+        for node_ouput in _node.outputs:
+            no = {}
+            nodeinfo["outputs"].append(no)
+            no["name"] = node_ouput.name
+            no["type"] = node_ouput.type
+        return nodeinfo
+    
+    def readLinkInfo(self, _link, count, locallib):
+        linkinfo = {}
+        linkinfo["from"] = self.fromDic(locallib, count, _link.from_node)
+        if hasattr(_link.from_node, "node_tree"):
+            linkinfo["from_node"] = _link.from_node.node_tree.name
+        else:
+            linkinfo["from_node"] = _link.from_node.name
+        if hasattr(_link.to_node, "node_tree"):
+            linkinfo["to_node"] = _link.to_node.node_tree.name
+        else:
+            linkinfo["to_node"] = _link.to_node.name
+        linkinfo["to"] =  self.fromDic(locallib, count, _link.to_node)
+        linkinfo["from_socket"] = { "name": _link.from_socket.name, "type": _link.from_socket.type }
+        linkinfo["to_socket"] = { "name": _link.to_socket.name, "type": _link.to_socket.type }
+        return linkinfo
+    
+    def readGroupToDictionary(self, material):
         debugPrint("reading object to dictionary")
-        if  material.node_tree != None:
+        mat_value = None
+        if  material != None:
+            mat_value = {}
             nodes = []
-            nodes_ref = []
             links = []
             mat_value["nodes"] = nodes
             mat_value["links"] = links
+            mat_value["children"] = []
             try:
                 count = 0
                 locallib = {}
                 debugPrint("reading nodes")
-                for _node in material.node_tree.nodes:
-                    nodeinfo = {}
-                    nodeinfo["id"] = count
-                    locallib[count] = _node
-                    count = count + 1
-                    nodeinfo["type"] = _node.type
-                    if _node.type != "OUTPUT_MATERIAL":
-                        nodeinfo["name"] = _node.node_tree.name
-                    else:
-                        nodeinfo["name"] = _node.name
-                    nodeinfo["inputs"] = []
-                    nodeinfo["outputs"] = []
-                    debugPrint("reading node inputs")
-                    for node_input in _node.inputs:
-                        ni = {}
-                        nodeinfo["inputs"].append(ni)
-                        ni["name"] = node_input.name
-                        ni["type"] = node_input.type
-                    debugPrint("reading node outputs")
-                    for node_ouput in _node.outputs:
-                        no = {}
-                        nodeinfo["outputs"].append(no)
-                        no["name"] = node_ouput.name
-                        no["type"] = node_ouput.type
+                for _node in material.nodes:
+                    nodeinfo = self.readNodeInfo(_node, count, locallib)
                     nodes.append(nodeinfo)
+                    count = count + 1
                 debugPrint("reading node links")
-                for _link in material.node_tree.links:
-                    linkinfo = {}
-                    linkinfo["from"] = self.fromDic(locallib, count, _link.from_node)
-                    linkinfo["to"] =  self.fromDic(locallib, count, _link.to_node)
-                    linkinfo["from_socket"] = { "name": _link.from_socket.name, "type": _link.from_socket.type }
-                    linkinfo["to_socket"] = { "name": _link.to_socket.name, "type": _link.to_socket.type }
+                for _link in material.links:
+                    linkinfo = self.readLinkInfo(_link, count, locallib)
                     links.append(linkinfo)
                 debugPrint("read sub nodes")
-                for _node in material.node_tree.nodes:
-                    if _node.type == "GROUP":
-                        mat_value["definitions"] = {}
-                        mat = {}
-                        self.readObjectToDictionary(_node, mat, mat_value["definitions"])
-                     
-                # for _node in material.node_tree.nodes:
-                #     self.processNode(_node, nodes, nodes_ref, links, material, mat, mat_value)
-                # for _link in material.node_tree.links:
-                #     self.processLinks(_link, nodes, nodes_ref, links, material, mat, mat_value)
             except Exception as e:
                 debugPrint(e)
+        return mat_value
+
+    def readObjectToDictionary(self, material):
+        debugPrint("reading object to dictionary")
+        mat_value = None
+        if  hasattr(material, 'node_tree') and material.node_tree != None:
+            mat_value = {}
+            nodes = []
+            links = []
+            mat_value["nodes"] = nodes
+            mat_value["links"] = links
+            mat_value["children"] = []
+            try:
+                count = 0
+                locallib = {}
+                debugPrint("reading nodes")
+                if hasattr(material, 'node_tree'):
+                    for _node in material.node_tree.nodes:
+                        nodeinfo = {}
+                        nodeinfo = self.readNodeInfo(_node, count, locallib)
+                        nodes.append(nodeinfo)
+                    debugPrint("reading node links")
+                if hasattr(material, 'node_tree'):
+                    for _link in material.node_tree.links:
+                        linkinfo = self.readLinkInfo(_link, count, locallib)
+                        links.append(linkinfo)
+                    debugPrint("read sub nodes")
+                if hasattr(material, 'node_tree'):
+                    cc = 0
+                    nc = 0
+                    for _node in material.node_tree.nodes:
+                        nodes[nc]["child_def"] = cc
+                        sub_name = ""
+                        if hasattr(_node, 'node_tree'):
+                            sub_name = _node.node_tree.name
+                        else:
+                            sub_name = _node.name
+                        mat_value["children"].append({
+                            "name": sub_name
+                        })
+                        cc = cc + 1
+                        nc = nc + 1
+            except Exception as e:
+                debugPrint(e)
+        return mat_value
+
     def fromDic(self, lib, total, obj):
         for i in range(total):
             if lib[i] == obj:
                 return i
+        debugPrint("didnt find obj in dic")
+        debugPrint(total)
         return -1
     def processLinks(self,_link, nodes, nodes_ref, links, material, mat, mat_value):
         try:
