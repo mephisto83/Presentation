@@ -112,7 +112,7 @@ class CompositeWriter():
         nodeinfo = {}
         nodeinfo["id"] = id
         locallib[id] = _node
-        nodeinfo["type"] = _node.type
+        nodeinfo["type"] = _node.bl_idname
         if hasattr(_node, 'location'):
             nodeinfo["location"] = {
                 "x": _node.location[0],
@@ -125,9 +125,8 @@ class CompositeWriter():
             }
         try:
             if hasattr(_node, 'node_tree'):
-                nodeinfo["name"] = _node.node_tree.name
-            else:
-                nodeinfo["name"] = _node.name
+                nodeinfo["node_name"] = _node.node_tree.name
+            nodeinfo["name"] = _node.name
         except Exception as e:
             debugPrint(e)
             debugPrint("use node name")
@@ -137,51 +136,74 @@ class CompositeWriter():
         debugPrint("reading node inputs")
         nodeinfo["options"] = {}
         if hasattr(_node, 'operation'):
-            nodeinfo["options"] = _node.operation
+            nodeinfo["operation"] = _node.operation
         if hasattr(_node, 'use_clamp'):
             nodeinfo["use_clamp"] = _node.use_clamp
         if hasattr(_node, 'invert'):
             nodeinfo["invert"] = _node.invert
         if hasattr(_node, 'blend_type'):
             nodeinfo["blend_type"] = _node.blend_type
+        socket_index = 0
         for node_input in _node.inputs:
             ni = {}
             nodeinfo["inputs"].append(ni)
             ni["name"] = node_input.name
-            ni["type"] = node_input.type
-
+            ni["type"] = node_input.bl_idname
+            ni["socket_index"] = socket_index
+            socket_index = socket_index + 1
             try:
                 if hasattr(node_input, 'default_value'):
-                    default_value = node_input.default_value
-                    if node_input.type == 'RGBA':
-                        default_value = [default_value[0],default_value[2],default_value[2],default_value[3]]
-                    elif node_input.type == 'VECTOR':
-                        default_value = [default_value[0],default_value[2],default_value[2]]
-                    ni["default_value"] = default_value
+                    ni["default_value"] = self.readDefaultValue(node_input)
             except Exception as e:
                 debugPrint(e)
         debugPrint("reading node outputs")
+        socket_index = 0
         for node_ouput in _node.outputs:
             no = {}
             nodeinfo["outputs"].append(no)
             no["name"] = node_ouput.name
-            no["type"] = node_ouput.type
+            no["type"] = node_ouput.bl_idname
+            no["socket_index"] = socket_index
+            socket_index = socket_index + 1
         return nodeinfo
-    
+    def readDefaultValue(self, node_input):
+        default_value = None
+        try:
+            if hasattr(node_input, 'default_value'):
+                default_value = node_input.default_value
+                if node_input.type == 'RGBA':
+                    default_value = [default_value[0],default_value[1],default_value[2],default_value[3]]
+                elif node_input.type == 'VECTOR':
+                    default_value = [default_value[0],default_value[1],default_value[2]]
+        except Exception as e:
+            debugPrint(e)
+        return default_value
+
     def readLinkInfo(self, _link, count, locallib):
         linkinfo = {}
-        linkinfo["from"] = self.fromDic(locallib, count, _link.from_node)
+        linkinfo["from"] = self.fromList(locallib, _link.from_node)
         if hasattr(_link.from_node, "node_tree"):
-            linkinfo["from_node"] = _link.from_node.node_tree.name
-        else:
-            linkinfo["from_node"] = _link.from_node.name
+            linkinfo["from_node_name"] = _link.from_node.node_tree.name
+        linkinfo["from_node"] = _link.from_node.name
+
         if hasattr(_link.to_node, "node_tree"):
-            linkinfo["to_node"] = _link.to_node.node_tree.name
-        else:
-            linkinfo["to_node"] = _link.to_node.name
-        linkinfo["to"] =  self.fromDic(locallib, count, _link.to_node)
-        linkinfo["from_socket"] = { "name": _link.from_socket.name, "type": _link.from_socket.type }
-        linkinfo["to_socket"] = { "name": _link.to_socket.name, "type": _link.to_socket.type }
+            linkinfo["to_node_name"] = _link.to_node.node_tree.name
+        linkinfo["to_node"] = _link.to_node.name
+        linkinfo["to"] =  self.fromList(locallib, _link.to_node)
+        ou_index = -1
+        ou_c = 0
+        for ou  in _link.from_node.outputs:
+            if ou ==  _link.from_socket:
+                ou_index = ou_c
+            ou_c = ou_c + 1
+        in_index = -1
+        ou_c = 0
+        for ou  in _link.to_node.inputs:
+            if ou ==  _link.to_socket:
+                in_index = ou_c
+            ou_c = ou_c + 1                                      
+        linkinfo["from_socket"] = { "socket_index": ou_index, "name": _link.from_socket.name, "type": _link.from_socket.bl_idname }
+        linkinfo["to_socket"] = { "socket_index": in_index, "name": _link.to_socket.name, "type": _link.to_socket.bl_idname }
         return linkinfo
     
     def readGroupToDictionary(self, material):
@@ -191,20 +213,39 @@ class CompositeWriter():
             mat_value = {}
             nodes = []
             links = []
+            defaultInputs = []
             mat_value["nodes"] = nodes
             mat_value["links"] = links
             mat_value["children"] = []
+            mat_value["defaultInputs"] = defaultInputs
             try:
+                input_index = 0
+                for input in material.inputs:
+                    in_ = {}
+                    in_["socket_index"] = input_index
+                    try:
+                        in_["name"] = input.name
+                        in_["type"] = input.bl_socket_idname
+                        in_["default_value"] = self.readDefaultValue(input)
+                    except Exception as e:
+                        debugPrint("failed to get input defaults")
+                    defaultInputs.append(in_)
+                    input_index = input_index + 1
+
                 count = 0
                 locallib = {}
+                locallist = []
                 debugPrint("reading nodes")
                 for _node in material.nodes:
                     nodeinfo = self.readNodeInfo(_node, count, locallib)
+                    nodeinfo["id"] = count
+                    locallib[id] = _node
+                    locallist.append(_node)
                     nodes.append(nodeinfo)
                     count = count + 1
                 debugPrint("reading node links")
                 for _link in material.links:
-                    linkinfo = self.readLinkInfo(_link, count, locallib)
+                    linkinfo = self.readLinkInfo(_link, count, locallist)
                     links.append(linkinfo)
                 debugPrint("read sub nodes")
             except Exception as e:
@@ -224,16 +265,21 @@ class CompositeWriter():
             try:
                 count = 0
                 locallib = {}
+                locallist = []
                 debugPrint("reading nodes")
+                
+                
+
                 if hasattr(material, 'node_tree'):
                     for _node in material.node_tree.nodes:
                         nodeinfo = {}
                         nodeinfo = self.readNodeInfo(_node, count, locallib)
+                        locallist.append(_node)
                         nodes.append(nodeinfo)
                     debugPrint("reading node links")
                 if hasattr(material, 'node_tree'):
                     for _link in material.node_tree.links:
-                        linkinfo = self.readLinkInfo(_link, count, locallib)
+                        linkinfo = self.readLinkInfo(_link, count, locallist)
                         links.append(linkinfo)
                     debugPrint("read sub nodes")
                 if hasattr(material, 'node_tree'):
@@ -254,6 +300,11 @@ class CompositeWriter():
             except Exception as e:
                 debugPrint(e)
         return mat_value
+    def fromList(self, list, obj):
+        for i in range(len(list)):
+            if list[i] == obj:
+                return i
+        raise ValueError("no item found in list")
 
     def fromDic(self, lib, total, obj):
         for i in range(total):

@@ -774,7 +774,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     debugPrint(objlocation)
                     with bpy.data.libraries.load(objlocation) as (data_from, data_to):
                         data_to.groups = [name for name in data_from.groups if not self.hasGroupByName(name)]
-                        
+        if "MaterialGroups" in self.settings and self.settings["MaterialGroups"] != None:
+            groupMaterials = self.settings["MaterialGroups"]
+            self.setupGroupMaterials(groupMaterials)
 
         if "Materials" in self.settings:
             debugPrint("setup materials")
@@ -1225,6 +1227,207 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if mat_Target["name"] == name and mat_Target["material"] == material:
                 return mat_Target
         return None
+    def setupGroupMaterials(self, groupMaterials):
+        groupsToSetup = []
+        for groupMaterial in groupMaterials:
+            groupsToSetup.append(groupMaterial["name"])
+        
+        for groupMaterial in groupMaterials:
+            self.setupGroupMaterial(groupMaterial)
+        
+        while len(groupsToSetup)>0:
+            complete = True
+            for groupMaterial in groupMaterials:
+                setup = self.fillInGroupMaterial(groupMaterial)
+                if setup:
+                    complete = False
+                    groupsToSetup = list(filter(lambda x: x != groupMaterial["name"], groupsToSetup))
+            if complete:
+                break
+ 
+    def setupGroupMaterial(self, groupMaterial):
+        node_group = None
+        debugPrint("setup  " + groupMaterial["name"])
+        if not self.groupMaterialExists(groupMaterial["name"]):
+            # create a group
+            debugPrint("# create a group")
+            node_group = bpy.data.node_groups.new(groupMaterial["name"], 'ShaderNodeTree')
+            
+            for node in groupMaterial["definition"]["nodes"]:
+                # create group nodes
+                debugPrint("# create group nodes")
+                debugPrint(node["id"])
+                if  node["type"] == "NodeGroupOutput":
+                    debugPrint("# create node outputs")
+                    for _input in node["inputs"]:
+                        debugPrint("create node out")
+                        if _input["name"] != "":
+                            node_group.outputs.new(_input["type"], _input["name"])
+                    node_group.nodes.new(node["type"])
+                if node["type"] == "NodeGroupInput":
+                    debugPrint("# create node inputs")
+                    for _output in node["outputs"]:
+                        debugPrint("create node in")
+                        if _output["name"] != "":
+                            node_group.inputs.new(_output["type"], _output["name"])
+                    node_group.nodes.new(node["type"])
+
+    def fillInGroupMaterial(self, groupMaterial):
+        if not self.allGroupsDependenciesExist(groupMaterial):
+            return False
+        node_group = bpy.data.node_groups[groupMaterial["name"]]
+
+        debugPrint("setup  " + groupMaterial["name"])
+        created_nodes = []
+        debugPrint("node count " + str(len(groupMaterial["definition"]["nodes"])))
+        for node in groupMaterial["definition"]["nodes"]:
+            debugPrint(node["type"])
+            if node["type"] == "NodeGroupInput":
+                debugPrint("Found input group")
+            # create group nodes
+            if node["type"] == "NodeGroupInput" or node["type"] == "NodeGroupOutput":
+                found = False
+                for t in node_group.nodes:
+                    if t.bl_idname == node["type"]:
+                        found = True
+                        created_nodes.append(t)
+                        new_node = t
+                        break
+                if not found:
+                    raise ValueError("Didnt find the node group Input or output that should be here")
+                else:
+                    debugPrint("found " + node["type"])
+                debugPrint(node["type"] + " looking for node  " + str(node["id"]) + " in " + str(len(created_nodes)) + " nodes ")
+                if created_nodes[node["id"]] != new_node:
+                    raise ValueError("Node is not in the expected order.")
+                continue
+
+            debugPrint("# create group nodes")
+            node_group = bpy.data.node_groups[groupMaterial["name"]]
+            new_node = node_group.nodes.new(node["type"])
+            if node["type"] == "ShaderNodeGroup":
+                debugPrint("node_name " + node["node_name"])
+                debugPrint("create_nodes : " + str(len(created_nodes)))
+                new_node.node_tree = bpy.data.node_groups[node["node_name"]]
+                debugPrint("create_nodes : " + str(len(created_nodes)))
+            if "location" in node:
+                debugPrint("# set node location")
+                new_node.location = (node["location"]["x"], node["location"]["y"])
+                debugPrint("create_nodes : " + str(len(created_nodes)))
+            if "operation" in node:
+                debugPrint("# set operation")
+                new_node.operation = node["operation"]
+            if "use_clamp" in node:
+                debugPrint("# set use_clamp")
+                new_node.use_clamp = node["use_clamp"]
+            if "invert" in node:
+                debugPrint("# set invert")
+                new_node.invert = node["invert"]
+            if "blend_type" in node:
+                debugPrint("# set blend type")
+                new_node.blend_type = node["blend_type"]
+            if node["type"] != "NodeReroute":
+                for n_i in node["inputs"]:
+                    if "default_value" in n_i:
+                        debugPrint("setting default value for " + n_i["type"])
+                        if n_i["type"] == "NodeSocketVector":
+                            vector = n_i["default_value"]
+                            new_node.inputs[n_i["socket_index"]]['0'] = vector[0]
+                            new_node.inputs[n_i["socket_index"]]['1'] = vector[1]
+                            new_node.inputs[n_i["socket_index"]]['2'] = vector[2]
+                        else:
+                            new_node.inputs[n_i["socket_index"]].default_value = n_i["default_value"]
+                for n_i in node["outputs"]:
+                    if "default_value" in n_i:
+                        debugPrint("setting default value for " + n_i["type"])
+                        if n_i["type"] == "NodeSocketVector":
+                            vector = n_i["default_value"]
+                            new_node.outputs[n_i["socket_index"]]['0'] = vector[0]
+                            new_node.outputs[n_i["socket_index"]]['1'] = vector[1]
+                            new_node.outputs[n_i["socket_index"]]['2'] = vector[2]
+                        else:
+                            new_node.outputs[n_i["socket_index"]].default_value = n_i["default_value"]
+
+            debugPrint("appending new_node")
+            debugPrint("create_nodes : " + str(len(created_nodes)))
+            created_nodes.append(new_node)
+            debugPrint("create_nodes : " + str(len(created_nodes)))
+            debugPrint("looking for node  " + str(node["id"]) + " in " + str(len(created_nodes)) + " nodes ")
+            if created_nodes[node["id"]] != new_node:
+                raise ValueError("Node is not in the expected order.")    
+            
+
+        for link in groupMaterial["definition"]["links"]:
+            from_node = created_nodes[link["from"]]
+            to_node = created_nodes[link["to"]]
+            debugPrint("create link")
+            debugPrint("from node " + str(link["from"]))
+            debugPrint(link["from_socket"]["name"])
+            debugPrint(from_node.name)
+            if hasattr(from_node, "node_tree"):
+                debugPrint("from_node " + from_node.node_tree.name)
+
+            debugPrint("to node " + str(link["to"]))
+            debugPrint(link["to_socket"]["name"])
+            debugPrint(to_node.name)
+            if hasattr(to_node, "node_tree"):
+                debugPrint("to_node " + to_node.node_tree.name)
+            node_group.links.new(from_node.outputs[link["from_socket"]["socket_index"]], to_node.inputs[link["to_socket"]["socket_index"]])
+        debugPrint("setting up default inputs")
+        if "defaultInputs" in groupMaterial["definition"]:
+            debugPrint("has default inputs")
+            for defaultInput in groupMaterial["definition"]["defaultInputs"]:
+                if "default_value" in defaultInput and defaultInput["default_value"] != None:
+                    debugPrint("has default input value")
+                    debugPrint(defaultInput["type"])
+                    if defaultInput["type"] == "NodeSocketColor":
+                        debugPrint("setting default vector input")
+                        vector = defaultInput["default_value"]
+                        node_group.inputs[defaultInput["socket_index"]].default_value = vector
+                    if defaultInput["type"] == "NodeSocketVector":
+                        debugPrint("setting default vector input")
+                        vector = defaultInput["default_value"]
+                        node_group.inputs[defaultInput["socket_index"]]['0'] = vector[0]
+                        node_group.inputs[defaultInput["socket_index"]]['1'] = vector[1]
+                        node_group.inputs[defaultInput["socket_index"]]['2'] = vector[2]
+                    elif defaultInput["type"] == "NodeSocketFloat":
+                        debugPrint("setting default input")
+                        debugPrint(defaultInput["name"])
+                        debugPrint(str(defaultInput["default_value"]))
+                        try:
+                            node_group.inputs[defaultInput["socket_index"]].default_value = defaultInput["default_value"]
+                        except Exception as e:
+                            try:
+                                node_group.inputs[defaultInput["socket_index"]].default_value = (defaultInput["default_value"], defaultInput["default_value"], defaultInput["default_value"])
+                            except Exception as e:
+                                node_group.inputs[defaultInput["socket_index"]].default_value = (defaultInput["default_value"],  defaultInput["default_value"], defaultInput["default_value"], defaultInput["default_value"])
+                    else:
+                        debugPrint("setting default input")
+                        debugPrint(defaultInput["name"])
+                        node_group.inputs[defaultInput["socket_index"]].default_value = defaultInput["default_value"]
+
+        debugPrint("-------------- created new group ----------------")
+        return True
+        
+    def allGroupsDependenciesExist(self, groupMaterial):
+        missing = False
+        debugPrint("missing dependency for")
+        if groupMaterial != None:
+            nodes = groupMaterial["definition"]["nodes"]
+            for node in nodes:
+                if node["type"] == "ShaderNodeGroup":
+                    if not self.groupMaterialExists(groupMaterial["name"]):
+                        debugPrint(groupMaterial["name"])
+                        missing = True
+
+        if missing:
+            return False
+        return True
+
+
+    def groupMaterialExists(self, groupMaterial):
+        return groupMaterial in bpy.data.node_groups
+
     def setMaterialObjectProperties(self, keyframe):
         objects = keyframe["objects"] 
         for _obj in objects:
@@ -1520,12 +1723,35 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildShaderWorldNodeOutput(config, material)
         elif type_config == SHADER_NODE_BACKGROUND:
             self.buildShaderNodeBackground(config, material, parentInput)
+        elif type_config == "CUSTOM":
+            self.buildCustomShaderNode(config, material, parentInput)
         return material
     
     def buildShaderOutputMaterial(self, config, material):
         node = material.node_tree.nodes.new(SHADER_OUTPUT_MATERIAL)
         self.buildMaterial(config["surface"], material, node.inputs[0])
     
+    def buildCustomShaderNode(self, config , material, parentInput = None):
+        debugPrint("creating shader node group")
+        node = material.node_tree.nodes.new("ShaderNodeGroup")
+        debugPrint("setting node group")
+        debugPrint(config["custom"]["name"])
+        node.node_tree = bpy.data.node_groups[config["custom"]["name"]]
+        debugPrint("set node_tree")
+        custom = config["custom"]
+        if parentInput != None:
+            if "$output" in custom:
+                debugPrint("create new link")
+                material.node_tree.links.new(parentInput, node.outputs[custom["$output"]])
+        debugPrint("adding conversion")
+        if "conversion" in custom:
+            for key in custom["conversion"]:
+                if key in custom  and custom[key] != None:
+                    debugPrint("building material connections")
+                    debugPrint("key : " + key)
+                    debugPrint(str(custom["conversion"][key]))
+                    self.buildMaterial(custom[key], material, node.inputs[custom["conversion"][key]])
+
     def buildShaderNodeMix(self, config ,material , parentInput = None):
         node = material.node_tree.nodes.new(SHADER_NODE_MIX)
         if parentInput != None:
@@ -2060,7 +2286,17 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint("created object with config")
                 res["name"] = obj["name"]
                 return res
-
+    def createBespoke(self, scene_object_config):
+        full_path_to_file = os.path.join(scene_object_config["folder"], scene_object_config["file"])
+        for obj in bpy.data.objects:
+            obj.tag = True
+        bpy.ops.import_scene.obj(filepath=full_path_to_file)
+        imported_objects = [obj for obj in bpy.data.objects if obj.tag is False]
+        bpy.ops.object.empty_add(type="PLAIN_AXES")
+        empty = self.context.active_object
+        for im_obj in imported_objects:
+            im_obj.parent = empty
+        return empty
     def createObjectWithConfig(self, scene_object_config):
         debugPrint("Create object with configuration")
         result = {}
@@ -2071,6 +2307,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.ops.mesh.primitive_cube_add(location=(0, 0, 0))
             result["object"] = self.context.active_object
             result["mesh"] = self.context.active_object.data
+        elif scene_object_config["type"] == "bespoke":
+            result["object"] = self.createBespoke(scene_object_config)
+            result["mesh"] = result["object"].data
         elif scene_object_config["type"] == "custom":
             if "name" in scene_object_config:
                 group = self.getGroupByName(scene_object_config["group"])
