@@ -143,6 +143,33 @@ class CompositeWriter():
             nodeinfo["invert"] = _node.invert
         if hasattr(_node, 'blend_type'):
             nodeinfo["blend_type"] = _node.blend_type
+        if hasattr(_node, "color_ramp"):
+            nodeinfo["color_ramp"] = self.readValToRGB(_node.color_ramp)
+        if hasattr(_node, "distribution"):
+            nodeinfo["distribution"] = _node.distribution
+        if hasattr(_node, "musgrave_type"):
+            nodeinfo["musgrave_type"] = _node.musgrave_type
+        if hasattr(_node, "gradient_type"):
+            nodeinfo["gradient_type"] = _node.gradient_type
+        if hasattr(_node, "coloring"):
+            nodeinfo["coloring"] = _node.coloring
+        if hasattr(_node, "distance"):
+            nodeinfo["distance"] = _node.distance
+        if hasattr(_node, "feature"):
+            nodeinfo["feature"] = _node.feature
+        if hasattr(_node, "source"):
+            nodeinfo["source"] = _node.source
+        if hasattr(_node, "color_space"):
+            nodeinfo["color_space"] = _node.color_space
+        if hasattr(_node, "interpolation"):
+            nodeinfo["interpolation"] = _node.interpolation
+        if hasattr(_node, "projection"):
+            nodeinfo["projection"] = _node.projection
+        if hasattr(_node ,"image"):
+            if _node.image:
+                nodeinfo["image"] = {}
+                nodeinfo["image"]["name"] = _node.image.name
+                nodeinfo["image"]["filepath"] = _node.image.filepath
         socket_index = 0
         for node_input in _node.inputs:
             ni = {}
@@ -172,12 +199,32 @@ class CompositeWriter():
             if hasattr(node_input, 'default_value'):
                 default_value = node_input.default_value
                 if node_input.type == 'RGBA':
-                    default_value = [default_value[0],default_value[1],default_value[2],default_value[3]]
+                    default_value = self.readColor(default_value)
                 elif node_input.type == 'VECTOR':
                     default_value = [default_value[0],default_value[1],default_value[2]]
+                elif node_input.type == 'VALTORGB':
+                    debugPrint("read VALTORGB")
+                    default_value = self.readValToRGB(node_input.color_ramp)
         except Exception as e:
             debugPrint(e)
         return default_value
+    def readValToRGB(self, color_ramp):
+        default_value = {}
+        default_value["color_mode"] = color_ramp.color_mode
+        default_value["hue_interpolation"] = color_ramp.hue_interpolation
+        default_value["interpolation"] = color_ramp.interpolation
+        default_value["elements"] = []
+        elements = color_ramp.elements
+        for i in range(len(elements)):
+            el = {}
+            el["position"] = elements[i].position
+            el["color"] = self.readColor(elements[i].color)
+            default_value["elements"].append(el)
+        return default_value
+
+    def readColor(self, default_value):
+        res = [default_value[0],default_value[1],default_value[2],default_value[3]]
+        return res
 
     def readLinkInfo(self, _link, count, locallib):
         linkinfo = {}
@@ -218,6 +265,7 @@ class CompositeWriter():
             mat_value["links"] = links
             mat_value["children"] = []
             mat_value["defaultInputs"] = defaultInputs
+            
             try:
                 input_index = 0
                 for input in material.inputs:

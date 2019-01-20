@@ -114,8 +114,7 @@ class ShipWright():
 		for j in range(len(self.partRefs)):
 			ref = self.partRefs[j]
 			ref.select = True
-			if ref.name != "" and ref.name != None:
-				ref.name = filename + "_" + ref.name
+			ref.name = filename + "_" + str(j)
 			print(ref.name)
 			partnames.append(ref.name)
 			

@@ -1326,6 +1326,63 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if "blend_type" in node:
                 debugPrint("# set blend type")
                 new_node.blend_type = node["blend_type"]
+            if "operation" in node:
+                new_node.operation = node["operation"]
+            if "distribution" in node:
+                new_node.distribution = node["distribution"]
+            if "musgrave_type" in node:
+                new_node.musgrave_type = node["musgrave_type"]
+            if "gradient_type" in node:
+                new_node.gradient_type = node["gradient_type"]
+            if "coloring" in node:
+                new_node.coloring = node["coloring"]
+            if "feature" in node:
+                new_node.feature = node["feature"]
+            if "projection" in node:
+                new_node.projection = node["projection"]
+            if "interpolation" in node:
+                new_node.interpolation = node["interpolation"]
+            if "source" in node:
+                new_node.source = node["source"]
+            if "color_space" in node:
+                new_node.color_space = node["color_space"]
+            if "image" in node:
+                if not self.hasImage(node["image"]["name"]):
+                    bpy.data.images.load(filepath=node["image"]["filepath"])
+                new_node.image = bpy.data.images[node["image"]["name"]]
+            if "color_ramp" in node:
+                color_ramp = node["color_ramp"]
+                if "color_mode" in color_ramp:
+                    debugPrint("setting color_mode")
+                    new_node.color_ramp.color_mode = color_ramp["color_mode"]
+                if "hue_interpolation" in color_ramp:
+                    debugPrint("setting hue_interpolation")
+                    new_node.color_ramp.hue_interpolation = color_ramp["hue_interpolation"]
+                if "interpolation" in color_ramp:
+                    debugPrint("setting interpolation")
+                    new_node.color_ramp.interpolation = color_ramp["interpolation"]
+                if "elements" in color_ramp:
+                    debugPrint("setting elements")
+                    elements = color_ramp["elements"]
+                    for i in range(len(new_node.color_ramp.elements)-1):
+                        debugPrint("removing existing")
+                        debugPrint(str(i))
+                        new_node.color_ramp.elements.remove(new_node.color_ramp.elements[0])
+                        debugPrint("removed existing")
+                    existing = len(new_node.color_ramp.elements)
+                    for i in range(len(elements) - existing):
+                        debugPrint("creating new")
+                        new_node.color_ramp.elements.new(elements[i]["position"])
+                    for i in range(len(elements)):
+                        debugPrint("setting position")
+                        new_node.color_ramp.elements[i].position = (elements[i]["position"])
+                    for i in range(len(elements)):
+                        debugPrint("setting element color")
+                        new_node.color_ramp.elements[i].color[0] = elements[i]["color"][0]
+                        new_node.color_ramp.elements[i].color[1] = elements[i]["color"][1]
+                        new_node.color_ramp.elements[i].color[2] = elements[i]["color"][2]
+                        new_node.color_ramp.elements[i].color[3] = elements[i]["color"][3]
+
             if node["type"] != "NodeReroute":
                 for n_i in node["inputs"]:
                     if "default_value" in n_i:
@@ -1750,7 +1807,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     debugPrint("building material connections")
                     debugPrint("key : " + key)
                     debugPrint(str(custom["conversion"][key]))
-                    self.buildMaterial(custom[key], material, node.inputs[custom["conversion"][key]])
+                    self.buildMaterial(custom[key], material, node.inputs[custom["conversion"][key]["socket_index"]])
 
     def buildShaderNodeMix(self, config ,material , parentInput = None):
         node = material.node_tree.nodes.new(SHADER_NODE_MIX)
@@ -2286,12 +2343,42 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint("created object with config")
                 res["name"] = obj["name"]
                 return res
+    def matchesSelector(self, object, selector):
+        if selector:
+            if object:
+                for i in range(len(selector)):
+                    s = selector[i]
+                    if object.name.startswith(s):
+                        return True
+        return False
     def createBespoke(self, scene_object_config):
         full_path_to_file = os.path.join(scene_object_config["folder"], scene_object_config["file"])
         for obj in bpy.data.objects:
             obj.tag = True
         bpy.ops.import_scene.obj(filepath=full_path_to_file)
         imported_objects = [obj for obj in bpy.data.objects if obj.tag is False]
+        if "materials" in scene_object_config:
+            materials = scene_object_config["materials"]
+            for i in range(len(materials)):
+                material = materials[i]
+                if "name" in material:
+                    if not self.hasMaterialByName(material["name"]):
+                        if "config" in material:
+                            debugPrint("building material " +  material["name"])
+                            self.buildMaterial(material["config"])
+                if "selector" in material:
+                    for j in range(len(imported_objects)):
+                        imported_object = imported_objects[j]
+                        if self.matchesSelector(imported_object, material["selector"]):
+                            mat = self.getMaterialByName(material["name"])
+                            if mat:
+                                imported_object.data.materials.clear()
+                                imported_object.data.materials.append(mat)
+                            else:
+                                debugPrint("MATERIAL MISSING !!!!")
+                                debugPrint(material["name"])
+                                raise ValueError("Material Missing")
+
         bpy.ops.object.empty_add(type="PLAIN_AXES")
         empty = self.context.active_object
         for im_obj in imported_objects:
