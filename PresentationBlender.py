@@ -402,7 +402,7 @@ class PresentationBlenderMatCompReader(bpy.types.Operator):
         obj = context.active_object
         self.context = context
         # settings = context.scene.presentation_settings
-        debugPrint(context.scene.presentation_settings)
+        # debugPrint(context.scene.presentation_settings)
         #
         try:
             debugPrint("start")
@@ -465,7 +465,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         self.context = context
         settings = context.scene.presentation_settings
         self.relativeDirePath = self.fixPath(os.path.dirname(settings))
-        debugPrint(context.scene.presentation_settings)
+        # debugPrint(context.scene.presentation_settings)
         try:
             self.clearObjects()
         except Exception as e:
@@ -487,7 +487,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         return {'FINISHED'}
     def processAnimation(self, config):
         debugPrint("processing animation")
-        debugPrint("{}".format(config))
+        #debugPrint("{}".format(config))
         self.settings = self.loadSettings(config)
         debugPrint("set settings")
         self.scenes = self.loadSceneConfig(config)
@@ -606,7 +606,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                             setattr(bpy.context.scene.pl_studio_props, key, val)
                 if "floor" in prolighting_config :
                     floor_config = prolighting_config["floor"]
-                    debugPrint(floor_config)
+                    #debugPrint(floor_config)
                     floor_key_list = ["use_pl_studio_floors"]
                     if "use_pl_studio_floors" in floor_config and floor_config["use_pl_studio_floors"]:
                         firefixes = True
