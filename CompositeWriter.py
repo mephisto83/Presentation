@@ -73,13 +73,14 @@ class CompositeWriter():
             #     materials.append(mat)
         return materials
 
-    def readGroups(self, nodeGroups):
+    def readGroups(self, nodeGroups, ofType = None):
         groups = []
         debugPrint("read groups")
         for group in nodeGroups:
-            mat_value = self.readGroupToDictionary(group)
-            mat = { "name": group.name, "value": mat_value }
-            groups.append(mat)
+            if ofType == None or ofType == group.type:
+                mat_value = self.readGroupToDictionary(group)
+                mat = { "name": group.name, "value": mat_value }
+                groups.append(mat)
         return groups
     
     def readWorlds(self, worlds):
@@ -135,6 +136,24 @@ class CompositeWriter():
         nodeinfo["outputs"] = []
         debugPrint("reading node inputs")
         nodeinfo["options"] = {}
+        attr_lst = [
+            "use_variable_size", 
+            "use_bokeh", 
+            "use_gamma_correction", 
+            "use_relative",
+            "size_x",
+            "size_y",
+            "use_extended_bounds",
+            "aspect_correction",
+            "factor_x",
+            "factor_y",
+            "use_clamp",
+            "default_value"]
+        for al in range(len(attr_lst)):
+            ali = attr_lst[al]
+            if hasattr(_node, ali):
+                nodeinfo[ali] = getattr(_node, ali) 
+            
         if hasattr(_node, 'operation'):
             nodeinfo["operation"] = _node.operation
         if hasattr(_node, 'use_clamp'):
@@ -147,6 +166,8 @@ class CompositeWriter():
             nodeinfo["color_ramp"] = self.readValToRGB(_node.color_ramp)
         if hasattr(_node, "distribution"):
             nodeinfo["distribution"] = _node.distribution
+        if hasattr(_node, "filter_type"):
+            nodeinfo["filter_type"] = _node.filter_type
         if hasattr(_node, "musgrave_type"):
             nodeinfo["musgrave_type"] = _node.musgrave_type
         if hasattr(_node, "gradient_type"):

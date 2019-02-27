@@ -26,11 +26,12 @@ import bpy
 import os.path
 import json
 import bpy.types
+import numbers
 import inspect
 import bmesh
 import shutil, errno
 from types import *
-from Constants import SHADER_NODE_BACKGROUND, SHADER_WORLD_NODE_OUTPUT, SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
+from Constants import COMPOSITOR_NODE_COMPOSITE, SHADER_NODE_BACKGROUND, SHADER_WORLD_NODE_OUTPUT, SHADER_NODE_DIFFUSE, SHADER_NODE_MIX, SHADER_NODE_VALUE, SHADER_EMISSION, SHADER_OUTPUT_MATERIAL, SHADER_MIX_RGB, _keypoint_settings, KEYPOINT_SETTINGS, RENDERSETTINGS, IMAGE_SETTINGS, CYCLESRENDERSETTINGS, CONVERT_INDEX, DEFAULT_ENVIRONMENT
 debugmode = True
 def debugPrint(val=None):
     if debugmode and val:
@@ -99,38 +100,6 @@ class PresentationBlenderFromScene(bpy.types.Operator):
             debugPrint("didnt work out")
             debugPrint(e)
         return {'FINISHED'}
-
-# class CompositorToBillboard(bpy.types.Operator):
-#     """Compositor to Billboard composite settings"""
-#     bl_idname = "object.presentation_compositor_to_billboard"
-#     bl_label = "Billboard Composite Settings"
-#     bl_options = {'REGISTER', 'UNDO'}
-
-#     def execute(self, context):
-#         scene = context.scene
-#         cursor = scene.cursor_location
-#         obj = scene.objects.active
-#         self.context = context
-        
-#         try:
-#             debugPrint("start")
-#             compositeWriter = CompositeWriter()
-#             compositeWriter.forceRelative = True
-#             compositeWriter.directJoin = True
-#             compositeWriter.relativePath  = "{{environment_path}}"
-#             compositeWriter.useName = True
-#             comp = compositeWriter.readComp(self.context.scene)
-#             res = { "composite": comp }
-#             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
-#             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
-#                 with open(os.path.join(scene.presentation_scene_output_folder, "billboardComposite.json"), 'w') as outfile:
-#                     json.dump(res, outfile)
-#             bpy.context.window_manager.clipboard = text  # now the clipboard content will be string "abc"
-#         except Exception as e:
-#             debugPrint("didnt work out") 
-#             debugPrint(e)
-#         debugPrint("Executing")
-#         return {'FINISHED'}
 
 class WriteConfig(bpy.types.Operator):
     """Write configuration"""
@@ -292,7 +261,7 @@ class WriteMaterials(bpy.types.Operator):
             compositeWriter.replaceText = "//textures\\"
             matLib = {}
             materials = compositeWriter.readMats(bpy.data.materials)
-            groups = compositeWriter.readGroups(bpy.data.node_groups)
+            groups = compositeWriter.readGroups(bpy.data.node_groups, 'SHADER')
             res = { "materials" : materials, "library": groups }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
@@ -370,8 +339,9 @@ class CompositorToScene(bpy.types.Operator):
             compositeWriter.replaceWith = "//"+context.scene.presentation_name+"/"
             compositeWriter.replaceText = "//textures\\"
             compositeWriter.replaceAnd = "//"+context.scene.presentation_name+"\\"
-            comp = compositeWriter.readComp(self.context.scene)
-            res = { "composite": comp }
+            comp = compositeWriter.readMats([self.context.scene])
+            groups = compositeWriter.readGroups(bpy.data.node_groups, 'COMPOSITING')
+            res = { "composite" : comp, "library": groups }
             text = json.dumps(res, sort_keys=True, indent=4, separators=(',', ': '))
             if scene.use_output_folder and scene.presentation_scene_output_folder != None:
                 filename = "composite.json"
@@ -521,10 +491,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.processArmatureFrames(scene)
             self.processMaterialKeyFrames(scene)
         compositeWriter = CompositeWriter()
+        count = 0
         for scene in self.scenes:
             self.switchToScene(scene["name"])
-            compositeWriter.setupComposite(scene, self.context, self.presentation_material_animation_points)
-            # self.setupComposite(scene)
+            # compositeWriter.setupComposite(scene, self.context, self.presentation_material_animation_points)
+            self.setupComposite(scene, count)
+            count = count + 1
         
     def parseValue(self, value):
         if isinstance(value, bool) or isinstance(value, float) or isinstance(value, int) or isinstance(value, str):
@@ -561,6 +533,7 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                             if hasattr(bpy.context.scene.world.pl_skies_settings, key):
                                 setattr(bpy.context.scene.world.pl_skies_settings, key , val)   
     def prolightingProcess(self, scene):
+        debugPrint("prolighting process")
         if "prolighting" in scene:
             firefixes = False
             if scene["prolighting"] == False:
@@ -671,8 +644,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 newworld.node_tree.nodes.remove(node)
             debugPrint("nodes removed ---")
             self.buildMaterial(world["config"], newworld)
+    def setupComposite(self, scene, index):
+        debugPrint("--- setup compositor ---- ")
+        if "scene-composite" in scene:
+            composite = scene["scene-composite"]
+            bscene = bpy.data.scenes[index]
+            bscene.use_nodes = True
+            for node in bscene.node_tree.nodes:
+                debugPrint("remove composite tree node")
+                bscene.node_tree.nodes.remove(node)
+            debugPrint("composite tree nodes removed")
+            self.buildMaterial(composite["config"], bscene)
 
     def processWorld(self, scene):
+        debugPrint("process world")
         if "world" in scene:
             debugPrint("set the world ")
             worldName = scene["world"]
@@ -723,6 +708,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             bpy.context.scene.render.fps = float(self.settings["fps"])
             bpy.context.scene.render.fps_base = 1
 
+        if "file_format" in self.settings:
+            bpy.context.scene.render.image_settings.file_format = self.settings["file_format"]
 
         bpy.context.scene.render.resolution_percentage = 100
         if "samples" in self.settings:
@@ -777,6 +764,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         if "MaterialGroups" in self.settings and self.settings["MaterialGroups"] != None:
             groupMaterials = self.settings["MaterialGroups"]
             self.setupGroupMaterials(groupMaterials)
+        if "CompositeGroups" in self.settings and self.settings["CompositeGroups"] != None:
+            groupComposites = self.settings["CompositeGroups"]
+            self.setupGroupComposites(groupComposites)
 
         if "Materials" in self.settings:
             debugPrint("setup materials")
@@ -1227,7 +1217,31 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             if mat_Target["name"] == name and mat_Target["material"] == material:
                 return mat_Target
         return None
+    def setupGroupComposites(self, groupComposites):
+        debugPrint("setup group composites")
+        groupsToSetup = []
+        debugPrint("not done yet")
+        for groupMaterial in groupComposites:
+            groupsToSetup.append(groupMaterial["name"])
+        
+        debugPrint("appeded group composites")
+        for groupMaterial in groupComposites:
+            self.setupGroupComposite(groupMaterial)
+
+        debugPrint("setup group composites")
+        while len(groupsToSetup)>0:
+            complete = True
+            for groupMaterial in groupComposites:
+                setup = self.fillInGroupMaterial(groupMaterial, "CompositorNodeGroup")
+                if setup:
+                    complete = False
+                    debugPrint("updating groups to setup")
+                    groupsToSetup = list(filter(lambda x: x != groupMaterial["name"], groupsToSetup))
+            if complete:
+                break
+        debugPrint("done setting up group composites")
     def setupGroupMaterials(self, groupMaterials):
+        debugPrint("setup group materials")
         groupsToSetup = []
         for groupMaterial in groupMaterials:
             groupsToSetup.append(groupMaterial["name"])
@@ -1241,10 +1255,35 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 setup = self.fillInGroupMaterial(groupMaterial)
                 if setup:
                     complete = False
+                    debugPrint("updating groups to setup")
                     groupsToSetup = list(filter(lambda x: x != groupMaterial["name"], groupsToSetup))
             if complete:
                 break
- 
+        debugPrint("done setting up group materials")
+    def setupGroupComposite(self, groupComposite):
+        node_group = None
+        debugPrint("setup " + groupComposite["name"])
+        if not self.groupCompositeExists(groupComposite["name"]):
+            debugPrint("create a composite group")
+            node_group = bpy.data.node_groups.new(groupComposite["name"], 'CompositorNodeTree')
+            for node in groupComposite["definition"]["nodes"]:
+                # create group nodes
+                debugPrint("# create group nodes")
+                debugPrint(node["id"])
+                if  node["type"] == "NodeGroupOutput":
+                    debugPrint("# create node outputs")
+                    for _input in node["inputs"]:
+                        debugPrint("create node out")
+                        if _input["name"] != "":
+                            node_group.outputs.new(_input["type"], _input["name"])
+                    node_group.nodes.new(node["type"])
+                if node["type"] == "NodeGroupInput":
+                    debugPrint("# create node inputs")
+                    for _output in node["outputs"]:
+                        debugPrint("create node in")
+                        if _output["name"] != "":
+                            node_group.inputs.new(_output["type"], _output["name"])
+                    node_group.nodes.new(node["type"])
     def setupGroupMaterial(self, groupMaterial):
         node_group = None
         debugPrint("setup  " + groupMaterial["name"])
@@ -1272,8 +1311,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                             node_group.inputs.new(_output["type"], _output["name"])
                     node_group.nodes.new(node["type"])
 
-    def fillInGroupMaterial(self, groupMaterial):
-        if not self.allGroupsDependenciesExist(groupMaterial):
+    def fillInGroupMaterial(self, groupMaterial, type = "ShaderNodeGroup"):
+        if not self.allGroupsDependenciesExist(groupMaterial, type):
             return False
         node_group = bpy.data.node_groups[groupMaterial["name"]]
 
@@ -1332,6 +1371,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 new_node.distribution = node["distribution"]
             if "musgrave_type" in node:
                 new_node.musgrave_type = node["musgrave_type"]
+            if "filter_type" in node:
+                new_node.filter_type = node["filter_type"]
             if "gradient_type" in node:
                 new_node.gradient_type = node["gradient_type"]
             if "coloring" in node:
@@ -1466,13 +1507,13 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         debugPrint("-------------- created new group ----------------")
         return True
         
-    def allGroupsDependenciesExist(self, groupMaterial):
+    def allGroupsDependenciesExist(self, groupMaterial, nodeType = "ShaderNodeGroup"):
         missing = False
         debugPrint("missing dependency for")
         if groupMaterial != None:
             nodes = groupMaterial["definition"]["nodes"]
             for node in nodes:
-                if node["type"] == "ShaderNodeGroup":
+                if node["type"] == nodeType:
                     if not self.groupMaterialExists(groupMaterial["name"]):
                         debugPrint(groupMaterial["name"])
                         missing = True
@@ -1484,7 +1525,8 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
     def groupMaterialExists(self, groupMaterial):
         return groupMaterial in bpy.data.node_groups
-
+    def groupCompositeExists(self, groupComposite):
+        return groupComposite in bpy.data.node_groups
     def setMaterialObjectProperties(self, keyframe):
         objects = keyframe["objects"] 
         for _obj in objects:
@@ -1661,6 +1703,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def applyConfig(self, tempObject, childConfig, frame):
         debugPrint("-----------------------")
         debugPrint("apply config")
+
+        debugPrint("------------animate vertices -------------")
+        if "vertex_animation" in childConfig:
+            self.animateVertices(tempObject, childConfig["vertex_animation"], True, frame)
         debugPrint("------------rotation-----------")
         if "rotation" in childConfig:
             self.rotation(tempObject , childConfig["rotation"],True,frame)
@@ -1780,13 +1826,241 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildShaderWorldNodeOutput(config, material)
         elif type_config == SHADER_NODE_BACKGROUND:
             self.buildShaderNodeBackground(config, material, parentInput)
+        elif type_config == COMPOSITOR_NODE_COMPOSITE:
+            self.buildCompositorNodeComposite(config, material, parentInput)
         elif type_config == "CUSTOM":
             self.buildCustomShaderNode(config, material, parentInput)
+        elif type_config == "CUSTOM_COMPOSITE":
+            self.buildCustomCompositorNode(config, material, parentInput)
+        else:
+            self.buildUnknownNode(config, material, parentInput)
         return material
-    
+    def buildUnknownNode(self, config, material, parentInput = None):
+        debugPrint("build unknown node")
+        new_node = material.node_tree.nodes.new(config["type"])
+        if "outputs" in config:
+            for output in config["outputs"]:
+                index = output["index"]
+                path_ = output["path"]
+                type_ = output["type"]
+                if "value" in output:
+                    value_ = output["value"]
+                    setattr(new_node.outputs[index], path_, value_)
+                    debugPrint("value was found and set in the output")
+                else:
+                    debugPrint("value was not found in the outputs configuration")
+                material.node_tree.links.new(parentInput, new_node.outputs[index])
+
     def buildShaderOutputMaterial(self, config, material):
         node = material.node_tree.nodes.new(SHADER_OUTPUT_MATERIAL)
         self.buildMaterial(config["surface"], material, node.inputs[0])
+    
+    def buildCustomCompositorNode(self, config , material, parentInput = None):
+        debugPrint("creating compositor node group")
+        debugPrint("setting node group")
+        debugPrint(config["custom"]["name"])
+        debugPrint(material)
+        created_nodes = self.buildCustomNodeTree(config["custom"], material.node_tree)
+        if "conversion" in config["custom"]:
+            conversion = config["custom"]["conversion"]
+            for key in conversion:
+                debugPrint("found " + key + " in conversion")
+                if key in config["custom"]:
+                    debugPrint("found " + key + " in config")
+                    node_index = conversion[key]["node_index"]
+                    socket_index = conversion[key]["socket_index"]
+                    debugPrint("building material for conversion")
+                    self.buildMaterial(config["custom"][key], material, created_nodes[node_index].inputs[socket_index])
+
+    def buildCustomNodeTree(self, groupMaterial, node_group, type = "CompositorNodeGroup"):
+        debugPrint("setup  " + groupMaterial["name"])
+        created_nodes = []
+        debugPrint("node count " + str(len(groupMaterial["definition"]["nodes"])))
+        attr_lst = [
+            "use_variable_size", 
+            "use_bokeh", 
+            "use_gamma_correction", 
+            "use_relative",
+            "size_x",
+            "size_y",
+            "use_extended_bounds",
+            "aspect_correction",
+            "factor_x",
+            "factor_y",
+            "use_clamp"
+            ]
+        for node in groupMaterial["definition"]["nodes"]:
+            debugPrint(node["type"])
+            debugPrint("# create custom nodes")
+            new_node = node_group.nodes.new(node["type"])
+            if "location" in node:
+                debugPrint("# set node location")
+                new_node.location = (node["location"]["x"], node["location"]["y"])
+                debugPrint("create_nodes : " + str(len(created_nodes)))
+            for al in range(len(attr_lst)):
+                ali = attr_lst[al]
+                if ali in node:
+                    debugPrint("setting "+ ali + " on node")
+                    setattr(new_node, ali, node[ali])
+            if "operation" in node:
+                debugPrint("# set operation")
+                new_node.operation = node["operation"]
+            if "use_clamp" in node:
+                debugPrint("# set use_clamp")
+                new_node.use_clamp = node["use_clamp"]
+            if "invert" in node:
+                debugPrint("# set invert")
+                new_node.invert = node["invert"]
+            if "blend_type" in node:
+                debugPrint("# set blend type")
+                new_node.blend_type = node["blend_type"]
+            if "operation" in node:
+                new_node.operation = node["operation"]
+            if "distribution" in node:
+                new_node.distribution = node["distribution"]
+            if "musgrave_type" in node:
+                new_node.musgrave_type = node["musgrave_type"]
+            if "filter_type" in node:
+                new_node.filter_type = node["filter_type"]
+            if "gradient_type" in node:
+                new_node.gradient_type = node["gradient_type"]
+            if "coloring" in node:
+                new_node.coloring = node["coloring"]
+            if "feature" in node:
+                new_node.feature = node["feature"]
+            if "projection" in node:
+                new_node.projection = node["projection"]
+            if "interpolation" in node:
+                new_node.interpolation = node["interpolation"]
+            if "source" in node:
+                new_node.source = node["source"]
+            if "color_space" in node:
+                new_node.color_space = node["color_space"]
+            if "image" in node:
+                if not self.hasImage(node["image"]["name"]):
+                    bpy.data.images.load(filepath=node["image"]["filepath"])
+                new_node.image = bpy.data.images[node["image"]["name"]]
+            if "color_ramp" in node:
+                color_ramp = node["color_ramp"]
+                if "color_mode" in color_ramp:
+                    debugPrint("setting color_mode")
+                    new_node.color_ramp.color_mode = color_ramp["color_mode"]
+                if "hue_interpolation" in color_ramp:
+                    debugPrint("setting hue_interpolation")
+                    new_node.color_ramp.hue_interpolation = color_ramp["hue_interpolation"]
+                if "interpolation" in color_ramp:
+                    debugPrint("setting interpolation")
+                    new_node.color_ramp.interpolation = color_ramp["interpolation"]
+                if "elements" in color_ramp:
+                    debugPrint("setting elements")
+                    elements = color_ramp["elements"]
+                    for i in range(len(new_node.color_ramp.elements)-1):
+                        debugPrint("removing existing")
+                        debugPrint(str(i))
+                        new_node.color_ramp.elements.remove(new_node.color_ramp.elements[0])
+                        debugPrint("removed existing")
+                    existing = len(new_node.color_ramp.elements)
+                    for i in range(len(elements) - existing):
+                        debugPrint("creating new")
+                        new_node.color_ramp.elements.new(elements[i]["position"])
+                    for i in range(len(elements)):
+                        debugPrint("setting position")
+                        new_node.color_ramp.elements[i].position = (elements[i]["position"])
+                    for i in range(len(elements)):
+                        debugPrint("setting element color")
+                        new_node.color_ramp.elements[i].color[0] = elements[i]["color"][0]
+                        new_node.color_ramp.elements[i].color[1] = elements[i]["color"][1]
+                        new_node.color_ramp.elements[i].color[2] = elements[i]["color"][2]
+                        new_node.color_ramp.elements[i].color[3] = elements[i]["color"][3]
+
+            if node["type"] != "NodeReroute":
+                for n_i in node["inputs"]:
+                    if  hasattr(n_i, "default_value"):
+                        debugPrint("setting input default value for " + n_i["type"])
+                        if n_i["type"] == "NodeSocketVector":
+                            vector = n_i["default_value"]
+                            new_node.inputs[n_i["socket_index"]]['0'] = vector[0]
+                            new_node.inputs[n_i["socket_index"]]['1'] = vector[1]
+                            new_node.inputs[n_i["socket_index"]]['2'] = vector[2]
+                        else:
+                            new_node.inputs[n_i["socket_index"]].default_value = n_i["default_value"]
+                for n_i in node["outputs"]:
+                    if hasattr(n_i, "default_value"):
+                        debugPrint("setting output default value for " + n_i["type"])
+                        if n_i["type"] == "NodeSocketVector":
+                            vector = n_i["default_value"]
+                            new_node.outputs[n_i["socket_index"]]['0'] = vector[0]
+                            new_node.outputs[n_i["socket_index"]]['1'] = vector[1]
+                            new_node.outputs[n_i["socket_index"]]['2'] = vector[2]
+                        else:
+                            new_node.outputs[n_i["socket_index"]].default_value = n_i["default_value"]
+
+            debugPrint("appending new_node")
+            debugPrint("create_nodes : " + str(len(created_nodes)))
+            created_nodes.append(new_node)
+            debugPrint("create_nodes : " + str(len(created_nodes)))
+            debugPrint("looking for node  " + str(node["id"]) + " in " + str(len(created_nodes)) + " nodes ")
+            if created_nodes[node["id"]] != new_node:
+                raise ValueError("Node is not in the expected order.")    
+            
+
+        for link in groupMaterial["definition"]["links"]:
+            from_node = created_nodes[link["from"]]
+            to_node = created_nodes[link["to"]]
+            debugPrint("create link")
+            debugPrint("from node " + str(link["from"]))
+            debugPrint(link["from_socket"]["name"])
+            debugPrint(from_node.name)
+            if hasattr(from_node, "node_tree"):
+                debugPrint("from_node " + from_node.node_tree.name)
+
+            debugPrint("to node " + str(link["to"]))
+            debugPrint(link["to_socket"]["name"])
+            debugPrint(to_node.name)
+            if hasattr(to_node, "node_tree"):
+                debugPrint("to_node " + to_node.node_tree.name)
+            node_group.links.new(from_node.outputs[link["from_socket"]["socket_index"]], to_node.inputs[link["to_socket"]["socket_index"]])
+
+        debugPrint("setting up default inputs")
+        if "defaultInputs" in groupMaterial["definition"]:
+            debugPrint("has default inputs")
+            for defaultInput in groupMaterial["definition"]["defaultInputs"]:
+                if "default_value" in defaultInput and defaultInput["default_value"] != None:
+                    debugPrint("has default input value")
+                    debugPrint(defaultInput["type"])
+                    _node_group = created_nodes[defaultInput["node_index"]]
+                    if defaultInput["type"] == "NodeSocketColor":
+                        debugPrint("setting default vector input")
+                        vector = defaultInput["default_value"]
+                        _node_group.inputs[defaultInput["socket_index"]].default_value = vector
+                    if defaultInput["type"] == "NodeSocketVector":
+                        debugPrint("setting default vector input")
+                        vector = defaultInput["default_value"]
+                        _node_group.inputs[defaultInput["socket_index"]]['0'] = vector[0]
+                        _node_group.inputs[defaultInput["socket_index"]]['1'] = vector[1]
+                        _node_group.inputs[defaultInput["socket_index"]]['2'] = vector[2]
+                    elif defaultInput["type"] == "NodeSocketFloat":
+                        debugPrint("setting default input")
+                        debugPrint(defaultInput["name"])
+                        debugPrint(str(defaultInput["default_value"]))
+                        debugPrint("socket_index")
+                        debugPrint(defaultInput["socket_index"])
+                        try:
+                            _node_group.inputs[defaultInput["socket_index"]].default_value = defaultInput["default_value"]
+                        except Exception as e:
+                            try:
+                                _node_group.inputs[defaultInput["socket_index"]].default_value = (defaultInput["default_value"], defaultInput["default_value"], defaultInput["default_value"])
+                            except Exception as e:
+                                _node_group.inputs[defaultInput["socket_index"]].default_value = (defaultInput["default_value"],  defaultInput["default_value"], defaultInput["default_value"], defaultInput["default_value"])
+                    else:
+                        debugPrint("setting default input")
+                        debugPrint(defaultInput["name"])
+                        debugPrint("socket_index")
+                        debugPrint(defaultInput["socket_index"])
+                        _node_group.inputs[defaultInput["socket_index"]].default_value = defaultInput["default_value"]
+
+        debugPrint("-------------- created new custom node tree ----------------")
+        return created_nodes
     
     def buildCustomShaderNode(self, config , material, parentInput = None):
         debugPrint("creating shader node group")
@@ -1807,7 +2081,12 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     debugPrint("building material connections")
                     debugPrint("key : " + key)
                     debugPrint(str(custom["conversion"][key]))
-                    self.buildMaterial(custom[key], material, node.inputs[custom["conversion"][key]["socket_index"]])
+                    
+                    input_key = custom["conversion"][key]
+                    if not isinstance(input_key, numbers.Number):
+                        input_key = input_key["input_index"]
+                    debugPrint(custom[key])
+                    self.buildMaterial(custom[key], material, node.inputs[input_key])
 
     def buildShaderNodeMix(self, config ,material , parentInput = None):
         node = material.node_tree.nodes.new(SHADER_NODE_MIX)
@@ -1825,6 +2104,14 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         node = material.node_tree.nodes.new(SHADER_WORLD_NODE_OUTPUT)
         self.buildMaterial(config["surface"], material, node.inputs['Surface'])
 
+    def buildCompositorNodeComposite(self, config, material, parentInput):
+        debugPrint(material)
+        debugPrint(material.node_tree)
+        node = material.node_tree.nodes.new(COMPOSITOR_NODE_COMPOSITE)
+        if "image" in config:
+            debugPrint("connecting image")
+            self.buildMaterial(config["image"], material, node.inputs[0])
+        
     def buildShaderNodeBackground(self, config, material, parentInput):
         debugPrint(material)
         debugPrint(material.node_tree)
@@ -2186,6 +2473,46 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 except Exception as e:
                     debugPrint("couldnt set property : {}".format(e))
             
+    def animateVertices(self, obj, animations, keyframe, frame):
+        debugPrint("animate vertices")
+        if animations == None:
+            return
+        if "action" in obj:
+            action = obj["action"]
+        else:
+            # obj = obj["object"]
+            mesh = obj["object"].data
+            action = bpy.data.actions.new("MeshAnimation")
+            mesh.animation_data_create()
+            mesh.animation_data.action = action
+            obj["action"] = action
+            data_path = "vertices[%d].co"
+            obj["fcurves"] = {}
+            if "vertices" in animations:
+                for vertex in animations["vertices"]:
+                    v = mesh.vertices[vertex["index"]]
+                    fcurves = [action.fcurves.new(data_path % v.index, index=i) for i in range(3)]
+                    obj["fcurves"][vertex["index"]] = fcurves
+            debugPrint("fcurves setup")
+            
+        if "vertices" in animations:
+            for vertex in animations["vertices"]:
+                debugPrint("mesh")
+                mesh = obj["object"].data
+                debugPrint("get vertex")
+                v = mesh.vertices[vertex["index"]]
+                # co_rest = v.co
+                debugPrint("get fcurves")
+                fcurves = obj["fcurves"][vertex["index"]]
+                ## for t, value in zip(frames, values):
+                # co_kf = mathutils.Vector((vertex["position"]["x"], vertex["position"]["y"], vertex["position"]["z"]))
+                # insert_keyframe(fcurves, frame, co_kf) 
+                debugPrint("set fcurves")
+                for i in range(len(fcurves)):
+                    fcu = fcurves[i]
+                    debugPrint("insert fcurve key frame")
+                    fcu.keyframe_points.insert(frame, vertex["position"][i],    options={'FAST'})
+                    debugPrint("inserted fcu curve")
 
     def rotation(self, obj, rotation, keyframe, frame):
             debugPrint("rotation")
@@ -2485,7 +2812,9 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                                 setattr(mat.node_tree.nodes["Image Texture"].image_user, prop, scene_object_config[prop])
             debugPrint("end --------------------------------------------------------------------------------------")
         elif scene_object_config["type"] == "ngon":
-            result["object"] = self.createNgon(scene_object_config)  
+            result["object"] = self.createNgon(scene_object_config)
+        elif scene_object_config["type"] == "ngon-surface":
+            result["object"] = self.createNgonSurface(scene_object_config)
         elif scene_object_config["type"] == "lamp":
             light = "POINT"
             if "light" in scene_object_config:
@@ -2600,6 +2929,37 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             print(newsize)
         obj.data.size = newsize      
         # print("size {}, score {}".format(prev_low_size, prev_low_score))  
+    def createNgonSurface(self, config):
+        debugPrint("Create ngon surface")
+        if "file" in config:
+            f = open(config["file"], 'r')
+            filecontents = f.read()
+            obj = json.loads(filecontents)
+            faces = obj["faces"]
+        else:
+            faces = config["faces"]
+            vertices = config["vertices"]
+        bm = bmesh.new()
+        all_vertices = []
+        debugPrint("collect vertices")
+        for v in vertices:
+            _v = bm.verts.new((v[0], v[1], v[2]))
+            all_vertices.append(_v)
+        debugPrint("collected vertices")
+        for f in faces:
+            verts = []
+            for v in f:
+                debugPrint("build face")
+                verts.append(all_vertices[v])
+            bm.faces.new(verts)
+        debugPrint("built faces0")
+        me = bpy.data.meshes.new("")
+        # bmesh.ops.automerge(bm, verts=all_vertices,  dist=.000001)
+        bm.to_mesh(me)
+        ob = bpy.data.objects.new("", me)
+        bpy.context.scene.collection.objects.link(ob)
+        bpy.context.scene.update()
+        return ob
     def createNgon(self, config):
         verts = config["vertices"]
         bm = bmesh.new()

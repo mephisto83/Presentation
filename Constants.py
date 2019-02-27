@@ -59,6 +59,7 @@ SHADER_NODE_MIX = "ShaderNodeMixShader"
 SHADER_NODE_DIFFUSE = "ShaderNodeBsdfDiffuse"
 SHADER_WORLD_NODE_OUTPUT = "ShaderNodeOutputWorld"
 SHADER_NODE_BACKGROUND = "ShaderNodeBackground"
+COMPOSITOR_NODE_COMPOSITE = "CompositorNodeComposite"
 
 DEFAULT_ENVIRONMENT = {
     "id": "TestScene_3",
