@@ -145,6 +145,14 @@ class CompositeWriter():
             "size_y",
             "use_extended_bounds",
             "aspect_correction",
+            "translation",
+            "rotation",
+            "scale",
+            "use_min",
+            "use_max",
+            "min",
+            "max",
+            "vector_type",
             "factor_x",
             "factor_y",
             "use_clamp",
@@ -153,11 +161,18 @@ class CompositeWriter():
             ali = attr_lst[al]
             if hasattr(_node, ali):
                 nodeinfo[ali] = getattr(_node, ali) 
+                debugPrint(ali)
+                debugPrint(nodeinfo[ali])
+                debugPrint(type(nodeinfo[ali]).__name__)
+                typename = type(nodeinfo[ali]).__name__
+                tmp = nodeinfo[ali]
+                if typename == "Vector":
+                    nodeinfo[ali] = { "type": typename, "value": [nodeinfo[ali][0], nodeinfo[ali][1], nodeinfo[ali][2]]}
+                elif typename == "Euler":
+                    nodeinfo[ali] = { "type": typename, "value": { "x": tmp.x, "y": tmp.y, "z": tmp.z, "order": tmp.order } }
             
         if hasattr(_node, 'operation'):
             nodeinfo["operation"] = _node.operation
-        if hasattr(_node, 'use_clamp'):
-            nodeinfo["use_clamp"] = _node.use_clamp
         if hasattr(_node, 'invert'):
             nodeinfo["invert"] = _node.invert
         if hasattr(_node, 'blend_type'):
@@ -212,6 +227,8 @@ class CompositeWriter():
             no["name"] = node_ouput.name
             no["type"] = node_ouput.bl_idname
             no["socket_index"] = socket_index
+            if hasattr(node_ouput, "default_value"):
+                no["default_value"] = self.readDefaultValue(node_ouput)
             socket_index = socket_index + 1
         return nodeinfo
     def readDefaultValue(self, node_input):
@@ -226,6 +243,8 @@ class CompositeWriter():
                 elif node_input.type == 'VALTORGB':
                     debugPrint("read VALTORGB")
                     default_value = self.readValToRGB(node_input.color_ramp)
+                elif node_input.type == 'VALUE':
+                    default_value = node_input.default_value
         except Exception as e:
             debugPrint(e)
         return default_value
@@ -259,6 +278,7 @@ class CompositeWriter():
         linkinfo["to_node"] = _link.to_node.name
         linkinfo["to"] =  self.fromList(locallib, _link.to_node)
         ou_index = -1
+        
         ou_c = 0
         for ou  in _link.from_node.outputs:
             if ou ==  _link.from_socket:
@@ -565,9 +585,9 @@ class CompositeWriter():
                 for node in mat.node_tree.nodes:
                     mat.node_tree.nodes.remove(node)
                 self.defineNodeTree(mat.node_tree, custom_mat, presentation_material_animation_points)
+                
             return mat
         return None
-
     def doesMaterialExistAlready(self, name):
         for item in bpy.data.materials:
             if item.name == name:

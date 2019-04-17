@@ -1319,6 +1319,27 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         debugPrint("setup  " + groupMaterial["name"])
         created_nodes = []
         debugPrint("node count " + str(len(groupMaterial["definition"]["nodes"])))
+        attr_lst = [
+            "use_variable_size", 
+            "use_bokeh", 
+            "use_gamma_correction", 
+            "use_relative",
+            "size_x",
+            "size_y",
+            "use_extended_bounds",
+            "aspect_correction",
+            "translation",
+            "rotation",
+            "scale",
+            "use_min",
+            "use_max",
+            "min",
+            "max",
+            "vector_type",
+            "factor_x",
+            "factor_y",
+            "use_clamp"
+            ]
         for node in groupMaterial["definition"]["nodes"]:
             debugPrint(node["type"])
             if node["type"] == "NodeGroupInput":
@@ -1344,6 +1365,30 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             debugPrint("# create group nodes")
             node_group = bpy.data.node_groups[groupMaterial["name"]]
             new_node = node_group.nodes.new(node["type"])
+            for al in range(len(attr_lst)):
+                ali = attr_lst[al]
+                if ali in node:
+                    debugPrint("setting "+ ali + " on node")
+                    typename = None
+                    tmp = None                    
+                    try:
+                        if "type" in node[ali] and "value" in node[ali]:
+                            typename = node[ali]["type"]
+                            tmp = node[ali]["value"]
+                            debugPrint(tmp)
+                    except Exception as e:
+                        debugPrint("simple value")
+
+                    if typename == "Vector":
+                        debugPrint("setting  new_node with Vector")
+                        setattr(new_node, ali, mathutils.Vector(tmp))
+                    elif typename == "Euler":
+                        debugPrint("setting  new_node with Euler")
+                        setattr(new_node, ali, mathutils.Euler((tmp["x"], tmp["y"], tmp["z"]), tmp["order"] ))
+                    else:
+                        debugPrint("setting new_node with setattr")
+                        debugPrint(typename)
+                        setattr(new_node, ali, node[ali])
             if node["type"] == "ShaderNodeGroup":
                 debugPrint("node_name " + node["node_name"])
                 debugPrint("create_nodes : " + str(len(created_nodes)))
@@ -1797,18 +1842,21 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         obj.data.materials.clear()
         obj.data.materials.append(material)
 
+    def setMaterialProperties(self, material, config):
+        if "blend_method" in config:
+            material.blend_method = config["blend_method"]
     def buildMaterial(self, config, material = None, parentInput = None):
         debugPrint("build material")
         if material == None:
             # Create a new material
             material = bpy.data.materials.new(name=config["name"])
             material.use_nodes = True
-
             # Remove default
             count = len(material.node_tree.nodes)
             for i in range(count):
                 material.node_tree.nodes.remove(material.node_tree.nodes[0])
-
+        
+        self.setMaterialProperties(material, config)
         type_config = config["type"]
         if type_config == SHADER_OUTPUT_MATERIAL:
             self.buildShaderOutputMaterial(config, material)
@@ -1836,13 +1884,22 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildUnknownNode(config, material, parentInput)
         return material
     def buildUnknownNode(self, config, material, parentInput = None):
-        debugPrint("build unknown node")
-        new_node = material.node_tree.nodes.new(config["type"])
+        
+        createfunc = lambda _ : material.node_tree.nodes.new(config["type"])
+        
+        new_node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        
+        self.ascribeNameLable(config, new_node)
+        
         if "outputs" in config:
             for output in config["outputs"]:
                 index = output["index"]
                 path_ = output["path"]
                 type_ = output["type"]
+                if "default_value" in output:
+                    value_ = output["default_value"]
+                    setattr(new_node.outputs[index], path_, value_)
+                    debugPrint("default value was found and set in the output")
                 if "value" in output:
                     value_ = output["value"]
                     setattr(new_node.outputs[index], path_, value_)
@@ -1854,8 +1911,22 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def buildShaderOutputMaterial(self, config, material):
         node = material.node_tree.nodes.new(SHADER_OUTPUT_MATERIAL)
         self.buildMaterial(config["surface"], material, node.inputs[0])
-    
+        self.setNodeLocation(node, config)
+
+    def setNodeLocation(self, node, config):
+        if "location" in config:
+            debugPrint("# set node location")
+            node.location = (config["location"]["x"], config["location"]["y"])
+
+    def ascribeNameLable(self, config , node):
+        if "name" in config:
+            node.name = config["name"]
+            node.label = config["name"]
+        
+        self.setNodeLocation(node, config)
+
     def buildCustomCompositorNode(self, config , material, parentInput = None):
+        
         debugPrint("creating compositor node group")
         debugPrint("setting node group")
         debugPrint(config["custom"]["name"])
@@ -1885,6 +1956,14 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             "size_y",
             "use_extended_bounds",
             "aspect_correction",
+            "translation",
+            "rotation",
+            "scale",
+            "use_min",
+            "use_max",
+            "min",
+            "max",
+            "vector_type",
             "factor_x",
             "factor_y",
             "use_clamp"
@@ -1897,11 +1976,30 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                 debugPrint("# set node location")
                 new_node.location = (node["location"]["x"], node["location"]["y"])
                 debugPrint("create_nodes : " + str(len(created_nodes)))
+                debugPrint(new_node.location)
             for al in range(len(attr_lst)):
                 ali = attr_lst[al]
                 if ali in node:
                     debugPrint("setting "+ ali + " on node")
-                    setattr(new_node, ali, node[ali])
+                    typename = None
+                    tmp = None
+                    try:
+                        if "type" in node[ali] and "value" in node[ali]:
+                            typename = node[ali]["type"]
+                            tmp = node[ali]["value"]
+                            debugPrint(tmp)
+                    except Exception as e:
+                            debugPrint("simple value")
+                    if typename == "Vector":
+                        debugPrint("setting  new_node with Vector")
+                        setattr(new_node, ali, mathutils.Vector(tmp))
+                    elif typename == "Euler":
+                        debugPrint("setting  new_node with Euler")
+                        setattr(new_node, ali, mathutils.Euler((tmp["x"], tmp["y"], tmp["z"]), tmp["order"] ))
+                    else:
+                        debugPrint("setting new_node with setattr")
+                        debugPrint(typename)
+                        setattr(new_node, ali, node[ali])
             if "operation" in node:
                 debugPrint("# set operation")
                 new_node.operation = node["operation"]
@@ -2061,10 +2159,20 @@ class PresentationBlenderAnimation(bpy.types.Operator):
 
         debugPrint("-------------- created new custom node tree ----------------")
         return created_nodes
-    
+    def existingMaterialNode(self, nodes , config, lambdfunc = None):
+        if "name" in config:
+            for i in range(len(nodes)):
+                if nodes[i].name == config["name"]:
+                    return nodes[i]
+        if lambdfunc != None: 
+            return lambdfunc(True)
+        return False
+
     def buildCustomShaderNode(self, config , material, parentInput = None):
         debugPrint("creating shader node group")
-        node = material.node_tree.nodes.new("ShaderNodeGroup")
+        node = self.existingMaterialNode(material.node_tree.nodes, config, lambda x : material.node_tree.nodes.new("ShaderNodeGroup"))
+        self.ascribeNameLable(config, node)
+        
         debugPrint("setting node group")
         debugPrint(config["custom"]["name"])
         node.node_tree = bpy.data.node_groups[config["custom"]["name"]]
@@ -2089,7 +2197,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
                     self.buildMaterial(custom[key], material, node.inputs[input_key])
 
     def buildShaderNodeMix(self, config ,material , parentInput = None):
-        node = material.node_tree.nodes.new(SHADER_NODE_MIX)
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_NODE_MIX)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
         if parentInput != None:
             material.node_tree.links.new(parentInput, node.outputs[0])
 
@@ -2101,13 +2212,19 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildMaterial(config["input2"], material, node.inputs[2])
 
     def buildShaderWorldNodeOutput(self, config, material):
-        node = material.node_tree.nodes.new(SHADER_WORLD_NODE_OUTPUT)
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_WORLD_NODE_OUTPUT)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
         self.buildMaterial(config["surface"], material, node.inputs['Surface'])
 
     def buildCompositorNodeComposite(self, config, material, parentInput):
         debugPrint(material)
         debugPrint(material.node_tree)
-        node = material.node_tree.nodes.new(COMPOSITOR_NODE_COMPOSITE)
+        createfunc = lambda x : material.node_tree.nodes.new(COMPOSITOR_NODE_COMPOSITE)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
         if "image" in config:
             debugPrint("connecting image")
             self.buildMaterial(config["image"], material, node.inputs[0])
@@ -2115,7 +2232,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
     def buildShaderNodeBackground(self, config, material, parentInput):
         debugPrint(material)
         debugPrint(material.node_tree)
-        node = material.node_tree.nodes.new(SHADER_NODE_BACKGROUND)
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_NODE_BACKGROUND)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
 
         if parentInput != None:
             debugPrint("linking to parent input")
@@ -2130,8 +2250,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildMaterial(config["strength"], material, node.inputs[1])
 
     def builderShaderNodeDiffuse(self, config, material ,parentInput):
-        node = material.node_tree.nodes.new(SHADER_NODE_DIFFUSE)
-
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_NODE_DIFFUSE)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
         if parentInput != None:
             material.node_tree.links.new(parentInput, node.outputs[0])
 
@@ -2143,8 +2265,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildMaterial(config["normal"], material, node.inputs[2])
 
     def buildShaderEmission(self, config, material, parentInput = None):
-        node = material.node_tree.nodes.new(SHADER_EMISSION)
-
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_EMISSION)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
         if parentInput != None:
             material.node_tree.links.new(parentInput, node.outputs[0])
 
@@ -2152,7 +2276,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             self.buildMaterial(config["color"], material, node.inputs['Color'])
 
     def buildShaderMixRGB(self, config, material, parentInput = None):
-        node = material.node_tree.nodes.new(SHADER_MIX_RGB)
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_MIX_RGB)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
 
         if parentInput != None:
             material.node_tree.links.new(parentInput, node.outputs[0])
@@ -2163,7 +2290,10 @@ class PresentationBlenderAnimation(bpy.types.Operator):
             node.inputs[2].default_value = config["color2"]
 
     def buildShaderNodeValue(self, config, material, parentInput = None):
-        node = material.node_tree.nodes.new(SHADER_NODE_VALUE)
+        createfunc = lambda x : material.node_tree.nodes.new(SHADER_NODE_VALUE)
+        node = self.existingMaterialNode(material.node_tree.nodes, config, createfunc)
+        self.ascribeNameLable(config, node)
+        
 
         if parentInput != None:
             material.node_tree.links.new(parentInput, node.outputs[0])
@@ -2949,7 +3079,6 @@ class PresentationBlenderAnimation(bpy.types.Operator):
         for f in faces:
             verts = []
             for v in f:
-                debugPrint("build face")
                 verts.append(all_vertices[v])
             bm.faces.new(verts)
         debugPrint("built faces0")
